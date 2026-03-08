@@ -24,7 +24,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Calendar,
-  Zap
+  Zap,
+  BarChart3
 } from "lucide-react"
 
 const MOCK_DAILY_DATA = [
