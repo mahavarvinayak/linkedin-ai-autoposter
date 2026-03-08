@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "A professional workspace with a laptop displaying a social media dashboard",
+      "imageUrl": "https://picsum.photos/seed/linkflow1/1200/800",
+      "imageHint": "workspace dashboard"
+    },
+    {
+      "id": "ai-visual",
+      "description": "Conceptual visualization of AI and connectivity",
+      "imageUrl": "https://picsum.photos/seed/linkflow2/600/400",
+      "imageHint": "artificial intelligence"
+    }
+  ]
 }
