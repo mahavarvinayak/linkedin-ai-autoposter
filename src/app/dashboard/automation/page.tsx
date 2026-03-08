@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -14,19 +15,65 @@ import {
   Layers,
   Calendar,
   Save,
-  Play
+  Play,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { doc, setDoc } from "firebase/firestore"
+import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 
 export default function AutomationPage() {
-  const [enabled, setEnabled] = useState(true)
+  const { user } = useUser()
+  const db = useFirestore()
   const { toast } = useToast()
+  
+  const userDocRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "users", user.uid);
+  }, [db, user]);
+
+  const { data: userData, isLoading: isDocLoading } = useDoc(userDocRef);
+
+  const [isSaving, setIsSaving] = useState(false)
+  const [enabled, setEnabled] = useState(false)
+  const [postingTime, setPostingTime] = useState("09:00")
+  const [targetAccountType, setTargetAccountType] = useState("personal")
+  const [postCategory, setPostCategory] = useState("Artificial Intelligence")
+
+  useEffect(() => {
+    if (userData) {
+      setEnabled(userData.automationEnabled ?? false)
+      setPostingTime(userData.postingTime ?? "09:00")
+      setTargetAccountType(userData.targetAccountType ?? "personal")
+    }
+  }, [userData])
 
   const handleSave = () => {
-    toast({
-      title: "Automation updated",
-      description: `Daily posting is now ${enabled ? 'active' : 'paused'}.`,
+    if (!userDocRef) return;
+    
+    setIsSaving(true)
+    updateDocumentNonBlocking(userDocRef, {
+      automationEnabled: enabled,
+      postingTime: postingTime,
+      targetAccountType: targetAccountType,
     })
+    
+    setTimeout(() => {
+      setIsSaving(false)
+      toast({
+        title: "Automation updated",
+        description: `Daily posting is now ${enabled ? 'active' : 'paused'}.`,
+      })
+    }, 500)
+  }
+
+  if (isDocLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -70,9 +117,14 @@ export default function AutomationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Daily Time (UTC)</Label>
+                <Label>Daily Time (Local)</Label>
                 <div className="flex items-center gap-2">
-                  <Input type="time" defaultValue="09:00" className="w-32" />
+                  <Input 
+                    type="time" 
+                    value={postingTime} 
+                    onChange={(e) => setPostingTime(e.target.value)}
+                    className="w-32" 
+                  />
                   <span className="text-xs text-muted-foreground italic">Optimal for LinkedIn engagement (08:00 - 10:00 AM)</span>
                 </div>
               </div>
@@ -90,26 +142,31 @@ export default function AutomationPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label>Primary Target Account</Label>
-                <Select defaultValue="personal">
+                <Select value={targetAccountType} onValueChange={setTargetAccountType}>
                   <SelectTrigger>
                     <SelectValue placeholder="Target" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="personal">John Doe (Personal Profile)</SelectItem>
-                    <SelectItem value="company">TechInsights Co. (Admin)</SelectItem>
+                    <SelectItem value="personal">Personal Profile</SelectItem>
+                    <SelectItem value="company">Connected Company Page</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label>Default Category / Topic</Label>
-                <Input placeholder="e.g. Artificial Intelligence, B2B SaaS, Modern Work" defaultValue="Artificial Intelligence" />
+                <Input 
+                  placeholder="e.g. Artificial Intelligence, B2B SaaS, Modern Work" 
+                  value={postCategory}
+                  onChange={(e) => setPostCategory(e.target.value)}
+                />
                 <p className="text-[10px] text-muted-foreground italic">The AI uses this to maintain consistent brand voice.</p>
               </div>
             </CardContent>
             <CardFooter className="border-t p-6 flex justify-end">
-              <Button onClick={handleSave} className="bg-primary hover:bg-primary/90">
-                <Save className="w-4 h-4 mr-2" /> Save Config
+              <Button onClick={handleSave} disabled={isSaving} className="bg-primary hover:bg-primary/90">
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Config
               </Button>
             </CardFooter>
           </Card>
@@ -141,9 +198,9 @@ export default function AutomationPage() {
             <CardContent className="p-0">
               <div className="divide-y">
                 {[
-                  { date: "Tomorrow, Oct 24", time: "09:00 AM", topic: "AI in healthcare" },
-                  { date: "Friday, Oct 25", time: "09:00 AM", topic: "Future of Web3" },
-                  { date: "Saturday, Oct 26", time: "09:00 AM", topic: "Product management tips" },
+                  { date: "Tomorrow", time: postingTime, topic: postCategory },
+                  { date: "In 2 days", time: postingTime, topic: postCategory },
+                  { date: "In 3 days", time: postingTime, topic: postCategory },
                 ].map((run, i) => (
                   <div key={i} className="px-6 py-4 flex justify-between items-center hover:bg-secondary/20 transition-colors">
                     <div>
