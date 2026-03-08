@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * LinkFlow AI Security Rules
+     * 
+     * CORE PHILOSOPHY:
+     * This ruleset implements a strict User-Ownership model. Access is strictly compartmentalized 
+     * by the user's authenticated UID, which is embedded directly into the document paths.
+     *
+     * DATA STRUCTURE:
+     * The database follows a hierarchical tree starting at /users/{userId}. 
+     * All related data (Posts and PostHistory) are stored as subcollections of the user 
+     * to which they belong.
+     * - /users/{userId}
+     * - /users/{userId}/posts/{postId}
+     * - /users/{userId}/posts/{postId}/postHistory/{historyId}
+     *
+     * KEY SECURITY DECISIONS:
+     * 1. Path-Based Authorization: By nesting data under {userId}, we ensure that authorization 
+     *    checks are performed against the path itself. This avoids the latency and cost of 
+     *    cross-document lookups (get() calls).
+     * 2. Identity Source of Truth: All decisions rely on the 'request.auth.uid' provided by 
+     *    Firebase Authentication.
+     * 3. Relational Integrity: On creation, we enforce that internal 'userId' or 'id' fields 
+     *    match the path parameters to ensure data consistency.
+     * 4. State Protection: All updates and deletes require the document to already exist 
+     *    and the requester to be the established owner.
+     * 5. Prototyping Flexibility: While authorization is strictly enforced, the specific 
+     *    shape of the data (fields, types) is not validated to allow for rapid UI iteration.
+     */
+
+    // --- Global Helper Functions ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Combines ownership check with a check for document existence for destructive operations. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for the root User document. Allows users to manage their own profile and settings.
+     * @path /users/{userId}
+     * @allow (get) userId 'abc' reads /users/abc
+     * @deny (create) userId 'abc' tries to create /users/def
+     * @principle Ownership and self-creation based on Auth UID.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for LinkedIn Posts. Restricted to the user who owns the parent path.
+       * @path /users/{userId}/posts/{postId}
+       * @allow (create) userId 'abc' creates /users/abc/posts/post123
+       * @deny (list) userId 'abc' tries to list /users/xyz/posts
+       * @principle Path-based subcollection ownership.
+       */
+      match /posts/{postId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Records of publishing attempts for a specific post.
+         * @path /users/{userId}/posts/{postId}/postHistory/{historyId}
+         * @allow (get) userId 'abc' reads history of their own post.
+         * @deny (update) userId 'abc' tries to modify history under userId 'xyz'.
+         * @principle Deeply nested ownership verification.
+         */
+        match /postHistory/{historyId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && request.resource.data.postId == postId;
+          allow update: if isExistingOwner(userId) && request.resource.data.postId == resource.data.postId;
+          allow delete: if isExistingOwner(userId);
+        }
+      }
+    }
+  }
+}

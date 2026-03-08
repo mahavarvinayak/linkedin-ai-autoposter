@@ -1,0 +1,240 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the LinkFlow AI application, storing their preferences, LinkedIn connection details, and AI API configurations.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "linkedinId": {
+          "type": "string",
+          "description": "The unique identifier for the user's personal LinkedIn profile. (Relationship: User 1:1 LinkedInProfile)"
+        },
+        "linkedinAccessToken": {
+          "type": "string",
+          "description": "An encrypted access token for the user's LinkedIn profile, securely managed by the backend. This token is used to make API calls on behalf of the user."
+        },
+        "linkedinRefreshToken": {
+          "type": "string",
+          "description": "An encrypted refresh token for the user's LinkedIn profile, used to obtain new access tokens when the current one expires, securely managed by the backend."
+        },
+        "organizationIds": {
+          "type": "array",
+          "description": "An array of unique identifiers for LinkedIn company pages where the user is an admin. (Relationship: User N:N CompanyPage)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "aiProvider": {
+          "type": "string",
+          "description": "The chosen AI model provider (e.g., 'gemini', 'openai', 'custom')."
+        },
+        "aiApiKeySecretRef": {
+          "type": "string",
+          "description": "A reference or identifier to the securely stored AI API key in a secret management system (e.g., Firebase Secret Manager). The actual key is not stored directly here."
+        },
+        "postingTime": {
+          "type": "string",
+          "description": "The daily time (e.g., '09:00 AM') at which automated LinkedIn posts should be published."
+        },
+        "automationEnabled": {
+          "type": "boolean",
+          "description": "A flag indicating whether daily automated posting is currently enabled for the user."
+        },
+        "targetAccountType": {
+          "type": "string",
+          "description": "Specifies the default target for automated posts: 'personal' for the user's profile or 'company' for a company page. Enum: ['personal', 'company']."
+        },
+        "defaultCompanyPageId": {
+          "type": "string",
+          "description": "The unique identifier of the default LinkedIn company page if 'targetAccountType' is 'company'. This ID should be present in the user's 'organizationIds' list. (Relationship: User 1:1 CompanyPage)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "linkedinId",
+        "linkedinAccessToken",
+        "linkedinRefreshToken",
+        "aiProvider",
+        "postingTime",
+        "automationEnabled",
+        "targetAccountType",
+        "createdAt"
+      ]
+    },
+    "Post": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Post",
+      "type": "object",
+      "description": "Represents a LinkedIn post, either AI-generated or manually created, including its content, scheduling, and target.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Post entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who created or owns this post. (Relationship: User 1:N Post)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The main textual content or caption of the LinkedIn post."
+        },
+        "hashtags": {
+          "type": "array",
+          "description": "An array of relevant hashtags associated with the post.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "targetType": {
+          "type": "string",
+          "description": "Specifies where the post should be published: 'personal' for the user's profile or 'company' for a company page. Enum: ['personal', 'company']."
+        },
+        "organizationId": {
+          "type": "string",
+          "description": "The unique identifier of the target LinkedIn company page if 'targetType' is 'company'. (Relationship: CompanyPage 1:N Post)"
+        },
+        "scheduledTime": {
+          "type": "string",
+          "description": "The timestamp when the post is scheduled to be published.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the post (e.g., 'draft', 'scheduled', 'posted', 'failed')."
+        },
+        "aiGenerated": {
+          "type": "boolean",
+          "description": "A flag indicating whether the content of this post was generated by an AI model."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the post was created.",
+          "format": "date-time"
+        },
+        "lastModifiedAt": {
+          "type": "string",
+          "description": "Timestamp when the post was last modified.",
+          "format": "date-time"
+        },
+        "retriesAttempted": {
+          "type": "number",
+          "description": "The number of times publishing this post has been attempted after an initial failure."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "content",
+        "hashtags",
+        "targetType",
+        "scheduledTime",
+        "status",
+        "aiGenerated",
+        "createdAt"
+      ]
+    },
+    "PostHistory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PostHistory",
+      "type": "object",
+      "description": "Records the outcome and details of each attempt to publish a specific LinkedIn post, useful for tracking and debugging.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the PostHistory entry."
+        },
+        "postId": {
+          "type": "string",
+          "description": "Reference to the Post that this history entry pertains to. (Relationship: Post 1:N PostHistory)"
+        },
+        "postedAt": {
+          "type": "string",
+          "description": "Timestamp when the post publishing attempt occurred.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The outcome status of the publishing attempt (e.g., 'success', 'failure')."
+        },
+        "linkedinResponse": {
+          "type": "string",
+          "description": "A string representation (e.g., JSON string) of the full response received from the LinkedIn API after the publishing attempt."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "An optional detailed error message if the publishing attempt failed."
+        }
+      },
+      "required": [
+        "id",
+        "postId",
+        "postedAt",
+        "status",
+        "linkedinResponse"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles and application settings. The `userId` in the path directly corresponds to `request.auth.uid`. Sensitive data like `linkedinAccessToken`, `linkedinRefreshToken`, and AI API keys are managed via secure references (e.g., `aiApiKeySecretRef`) to Firebase Secret Manager, accessed only by Cloud Functions. Includes denormalized 'organizationIds' for company page posting authorization. The `automationEnabled`, `postingTime`, `targetAccountType`, and `defaultCompanyPageId` fields control automation behavior."
+        }
+      },
+      {
+        "path": "/users/{userId}/posts/{postId}",
+        "definition": {
+          "entityName": "Post",
+          "schema": {
+            "$ref": "#/backend/entities/Post"
+          },
+          "description": "Stores individual LinkedIn posts belonging to a specific user. This subcollection structure enforces direct ownership via the `{userId}` path parameter, eliminating the need for `get()` calls in security rules. The `userId` field is also present in the document for query flexibility (e.g., collection group queries) but security is primarily based on the path. Includes 'content', 'hashtags', 'targetType', 'scheduledTime', and 'status'."
+        }
+      },
+      {
+        "path": "/users/{userId}/posts/{postId}/postHistory/{historyId}",
+        "definition": {
+          "entityName": "PostHistory",
+          "schema": {
+            "$ref": "#/backend/entities/PostHistory"
+          },
+          "description": "Records the outcome and details of each publishing attempt for a specific post. This nested subcollection ensures strict ownership and access control, with `{userId}` and `{postId}` available directly in the path. The `postId` field is also in the document for query flexibility (e.g., collection group queries) but path parameters are paramount for security. Includes 'postedAt', 'status', 'linkedinResponse', and 'errorMessage'."
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, prioritizing authorization independence and supporting secure list operations (QAPs). \n\n**Authorization Independence:** The core strategy involves structuring data hierarchically where ownership is explicitly part of the document path. Instead of top-level 'posts' and 'postHistory' collections, which would necessitate `get()` calls in security rules to check parent document ownership, we embed these as subcollections under the 'users' path. \n*   For example, a user's posts are stored at `/users/{userId}/posts/{postId}`. This ensures that the `userId` is available directly in the path for any read/write operation on a post document, allowing security rules to simply compare `request.auth.uid` with `{userId}` in the path without needing to fetch the parent user document. \n*   Similarly, post history is stored at `/users/{userId}/posts/{postId}/postHistory/{historyId}`, making both `userId` and `postId` available in the path, thereby guaranteeing that a user can only access history pertaining to their own posts. \nThis denormalization of authorization context into the path eliminates the need for `get()` calls, enabling atomic operations and simplifying rule logic significantly.\n\n**QAPs (Rules are not Filters):** This hierarchical structure inherently supports secure list operations. \n*   A user can securely list all their own posts by querying `/users/{request.auth.uid}/posts`. The security rule for this path will verify that the `{userId}` in the path matches `request.auth.uid`, ensuring that only the authenticated user can access their specific collection of posts. \n*   Similarly, a user can list the history for a specific post by querying `/users/{request.auth.uid}/posts/{postId}/postHistory`. This prevents unauthorized access to other users' data or post history. \n\n**Security of Sensitive Data:** Following best practices, LinkedIn access tokens and AI API keys are not stored directly in Firestore documents. Instead, the 'User' document stores references (e.g., `aiApiKeySecretRef`) to these sensitive credentials, which should be managed securely in Firebase Secret Manager and accessed exclusively by Cloud Functions. This ensures tokens and keys are never exposed on the client side or directly in the database.\n\n**Structural Segregation:** All documents within a given collection path (`/users/{userId}`, `/users/{userId}/posts`, `/users/{userId}/posts/{postId}/postHistory`) share a consistent security posture. This eliminates the complexity of mixed access patterns within a single collection, making rules clearer and easier to manage. For instance, all documents under `/users/{userId}/posts` are strictly owned by that `{userId}`.\n\n**Predictability & Consistency:** Wildcards (`{userId}`, `{postId}`, `{historyId}`) are descriptive. Authorization fields like `userId` are consistently used and, where beneficial for queries (e.g., collection group queries), are also denormalized within the document while primary security relies on the path."
+  }
+}
