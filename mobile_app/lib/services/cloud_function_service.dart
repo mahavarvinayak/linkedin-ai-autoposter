@@ -9,7 +9,7 @@ class CloudFunctionService {
   static const String _baseUrl = String.fromEnvironment(
     'LINKFLOW_API_BASE_URL',
     defaultValue:
-        'https://us-central1-studio-1013588681-626a8.cloudfunctions.net',
+        'https://linkedin-ai-autoposter-phi.vercel.app/api',
   );
 
   final String _userToken;

@@ -447,6 +447,7 @@ export async function handleUpdateAutomation(req: NextRequest) {
     const postingTime = String(body.postingTime || "09:00");
     const targetType = String(body.targetType || "personal");
     const organizationId = (body.organizationId as string | undefined) || null;
+    const dailyTopic = (body.dailyTopic as string | undefined) ?? undefined;
 
     await db.collection("users").doc(decodedToken.uid).set(
       {
@@ -454,6 +455,7 @@ export async function handleUpdateAutomation(req: NextRequest) {
         postingTime,
         targetType,
         selectedOrganizationId: organizationId,
+        ...(dailyTopic !== undefined && { dailyTopic }),
       },
       {merge: true}
     );
