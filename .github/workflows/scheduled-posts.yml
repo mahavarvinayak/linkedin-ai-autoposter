@@ -1,0 +1,23 @@
+name: LinkedIn Daily Scheduled Posts
+
+on:
+  schedule:
+    # Run every minute to check if it's time to post
+    - cron: "* * * * *"
+  workflow_dispatch: # Manual trigger option
+
+jobs:
+  check-and-post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Post Check
+        run: |
+          curl -X POST ${{ secrets.VERCEL_API_URL }}/api/schedule/check-and-post \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -d '{
+              "timezone": "Asia/Kolkata"
+            }'
+        env:
+          VERCEL_API_URL: ${{ secrets.VERCEL_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
