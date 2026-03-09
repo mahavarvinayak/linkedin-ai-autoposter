@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,9 +8,8 @@ export async function POST(request: NextRequest) {
 
     // schedules format:
     // {
-    //   "monday": "09:00",
-    //   "tuesday": "11:00",
-    //   "wednesday": "14:00",
+    //   "monday": { "time1": "09:00", "time2": "14:00" },
+    //   "tuesday": { "time1": "10:00", "time2": "15:00" },
     //   ...
     // }
 
@@ -37,7 +36,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { getDoc, doc } = await import("firebase/firestore");
     const scheduleRef = doc(db, "users", "default", "settings", "postSchedule");
     const scheduleSnap = await getDoc(scheduleRef);
 

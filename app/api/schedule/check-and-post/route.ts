@@ -32,23 +32,31 @@ export async function POST(request: NextRequest) {
     }
 
     const schedule = scheduleSnap.data();
-    const scheduledTime = schedule[currentDay];
+    const daySchedule = schedule[currentDay];
 
-    if (!scheduledTime) {
+    if (!daySchedule || (!daySchedule.time1 && !daySchedule.time2)) {
       return NextResponse.json(
         { message: `No post scheduled for ${currentDay}` },
         { status: 200 }
       );
     }
 
-    // Check if current time matches scheduled time (within 1 minute window)
-    const [scheduledHour, scheduledMin] = scheduledTime.split(":");
-    const timeDiff = Math.abs(
-      parseInt(currentHour + currentMinute) -
-        parseInt(scheduledHour + scheduledMin)
-    );
+    const scheduledTimes = [daySchedule.time1, daySchedule.time2].filter(Boolean);
+    const currentTimeNumber = parseInt(currentHour + currentMinute);
 
-    if (timeDiff <= 1) {
+    let shouldPost = false;
+    for (const scheduledTime of scheduledTimes) {
+      const [scheduledHour, scheduledMin] = scheduledTime.split(":");
+      const scheduledTimeNumber = parseInt(scheduledHour + scheduledMin);
+      const timeDiff = Math.abs(currentTimeNumber - scheduledTimeNumber);
+
+      if (timeDiff <= 1) {
+        shouldPost = true;
+        break;
+      }
+    }
+
+    if (shouldPost) {
       // Time to post!
       const postResult = await generateLinkedInPost();
       

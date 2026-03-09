@@ -18,8 +18,9 @@ export type GenerateLinkedInPostInput = z.infer<typeof GenerateLinkedInPostInput
 
 // Output Schema
 const GenerateLinkedInPostOutputSchema = z.object({
-  caption: z.string().describe('The engaging LinkedIn post caption.'),
-  hashtags: z.string().describe('A comma-separated string of relevant hashtags for the post, e.g., "#AI, #Technology, #Innovation".'),
+  caption: z.string().describe('The engaging LinkedIn post caption with SEO optimization.'),
+  hashtags: z.string().describe('A comma-separated string of 8-12 relevant, trending hashtags for the post.'),
+  imagePrompt: z.string().describe('A detailed prompt for generating a professional LinkedIn-appropriate image.'),
 });
 export type GenerateLinkedInPostOutput = z.infer<typeof GenerateLinkedInPostOutputSchema>;
 
@@ -28,21 +29,50 @@ const generateLinkedInPostPrompt = ai.definePrompt({
   name: 'generateLinkedInPostPrompt',
   input: { schema: GenerateLinkedInPostInputSchema },
   output: { schema: GenerateLinkedInPostOutputSchema },
-  prompt: `Generate a highly engaging LinkedIn post about {{{topic}}}.
+  prompt: `Generate a highly engaging, SEO-optimized LinkedIn post about {{{topic}}}.
 
-The post must include:
-* a strong hook
-* value or insight
-* conversational tone
-* optimized LinkedIn formatting
-* relevant hashtags
+CRITICAL REQUIREMENTS:
+1. **SEO Optimization**: 
+   - Use power words and industry keywords naturally
+   - Include your main topic keyword in the first sentence
+   - Write for high searchability on LinkedIn algorithm
+   - Target career growth, professional development, or industry trends
 
-Maximum length: 1500 characters.
+2. **Engaging Content**:
+   - Start with a strong, curiosity-driven hook
+   - Include actionable insights or valuable takeaways
+   - Use short paragraphs (2-3 lines max) for readability
+   - Add emojis strategically (2-3 relevant ones)
+   - End with a call-to-action or question to boost engagement
 
-Output format:
+3. **LinkedIn Formatting**:
+   - Conversational, professional tone
+   - Break content into digestible chunks
+   - Maximum length: 1300 characters
+   - Write as if speaking to a professional audience
 
-Caption
-Hashtags`,
+4. **Hashtags** (IMPORTANT):
+   - Generate 8-12 trending, relevant hashtags
+   - Mix of broad (#Leadership, #AI, #Technology) and niche hashtags
+   - Only use hashtags that are genuinely relevant
+   - Format: #Hashtag (no spaces)
+   - These hashtags directly boost post visibility
+
+5. **Image Generation Prompt**:
+   - Create a detailed, professional image prompt
+   - Should be LinkedIn-appropriate (professional, clean, modern)
+   - Include specific visual elements that match the topic
+   - Specify style: modern, professional, minimalist, or relevant to the topic
+   - Must enhance the post's message visually
+
+Output format exactly as shown:
+---
+Caption: [Your engaging, SEO-optimized post here]
+
+Hashtags: #Hashtag1 #Hashtag2 #Hashtag3 #Hashtag4 #Hashtag5 #Hashtag6 #Hashtag7 #Hashtag8
+
+ImagePrompt: [Detailed prompt for generating a professional image matching this post]
+---`,
 });
 
 // Flow definition
