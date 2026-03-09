@@ -1,0 +1,94 @@
+LinkFlow AI - Remaining Work Before Install
+Date: 2026-03-09
+
+Current status:
+- APK already built: mobile_app/build/app/outputs/flutter-apk/app-release.apk
+- Firebase Android config still has placeholders
+
+==================================================
+1) Firebase Android Config (MANDATORY)
+==================================================
+A. Replace file values in:
+   mobile_app/android/app/google-services.json
+
+   Replace these placeholders:
+   - YOUR_ANDROID_APP_ID_HERE
+   - YOUR_ANDROID_API_KEY_HERE
+
+B. Update Flutter Firebase options in:
+   mobile_app/lib/firebase_options.dart
+
+   Replace:
+   - apiKey: 'YOUR_ANDROID_API_KEY_HERE'
+   - appId: 'YOUR_ANDROID_APP_ID_HERE'
+
+Where to get values:
+- Firebase Console -> Project Settings -> Your apps -> Android app (com.linkflowai.linkflow_ai)
+- Download fresh google-services.json from there
+
+==================================================
+2) Firebase Auth Enable (MANDATORY)
+==================================================
+- Firebase Console -> Authentication -> Sign-in method -> Enable Email/Password
+
+==================================================
+3) Cloud Functions Secrets (MANDATORY)
+==================================================
+Run from repo root:
+
+firebase functions:secrets:set LINKEDIN_CLIENT_ID
+firebase functions:secrets:set LINKEDIN_CLIENT_SECRET
+firebase functions:secrets:set GEMINI_API_KEY
+
+==================================================
+4) Deploy Backend (MANDATORY)
+==================================================
+A. Deploy Functions:
+
+cd functions
+npm install
+npm run build
+firebase deploy --only functions
+
+B. Deploy Firestore rules:
+
+cd ..
+firebase deploy --only firestore:rules
+
+==================================================
+5) LinkedIn App Configuration (MANDATORY)
+==================================================
+In LinkedIn Developer app:
+
+A. Redirect URL must match deployed callback URL:
+   https://us-central1-studio-1013588681-626a8.cloudfunctions.net/linkedinCallback
+
+B. Required scopes/products (as available/approved):
+   - r_liteprofile
+   - r_emailaddress
+   - w_member_social
+   - w_organization_social
+
+Note:
+- Some LinkedIn permissions require review/approval. If not approved, organization posting may fail.
+
+==================================================
+6) Final APK Install
+==================================================
+APK path:
+- mobile_app/build/app/outputs/flutter-apk/app-release.apk
+
+Install on Android phone:
+- Transfer APK to phone
+- Allow "Install unknown apps" for installer source if prompted
+- Install and open app
+
+==================================================
+Quick Validation After Install
+==================================================
+1. Login with Email/Password works
+2. LinkedIn connect button opens OAuth page
+3. AI post generation works
+4. Publish to LinkedIn works
+5. Automation settings save successfully
+6. Analytics page loads data (after posts exist)

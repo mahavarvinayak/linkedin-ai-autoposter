@@ -59,8 +59,8 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
       /**
@@ -72,8 +72,8 @@ service cloud.firestore {
        */
       match /posts/{postId} {
         allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow create: if isOwner(userId);
+        allow update: if isExistingOwner(userId);
         allow delete: if isExistingOwner(userId);
 
         /**
@@ -89,6 +89,18 @@ service cloud.firestore {
           allow update: if isExistingOwner(userId) && request.resource.data.postId == resource.data.postId;
           allow delete: if isExistingOwner(userId);
         }
+      }
+
+      /**
+       * @description Rules for post analytics. Restricted to the user who owns the parent path.
+       * @path /users/{userId}/analytics/{analyticsId}
+       * @principle Path-based subcollection ownership.
+       */
+      match /analytics/{analyticsId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
       }
     }
   }
