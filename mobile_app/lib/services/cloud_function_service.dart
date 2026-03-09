@@ -105,6 +105,7 @@ class CloudFunctionService {
     required String postingTime,
     required String targetType,
     String? organizationId,
+    String? dailyTopic,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/updateAutomation'),
@@ -114,6 +115,7 @@ class CloudFunctionService {
         'postingTime': postingTime,
         'targetType': targetType,
         'organizationId': organizationId,
+        if (dailyTopic != null && dailyTopic.isNotEmpty) 'dailyTopic': dailyTopic,
       }),
     );
     if (response.statusCode != 200) {

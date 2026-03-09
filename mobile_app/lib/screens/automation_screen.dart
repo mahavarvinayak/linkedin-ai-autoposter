@@ -52,6 +52,11 @@ class _AutomationScreenState extends State<AutomationScreen> {
 
             const SizedBox(height: 16),
 
+            // Daily Auto-Post Topic
+            _DailyTopicSection(),
+
+            const SizedBox(height: 16),
+
             // Posting Time
             _PostingTimeSection(),
 
@@ -489,6 +494,109 @@ class _TargetSection extends StatelessWidget {
                     onChanged: settings.setSelectedOrgId,
                     decoration: const InputDecoration(
                       hintText: 'LinkedIn Organization ID (numbers only)',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DailyTopicSection extends StatefulWidget {
+  @override
+  State<_DailyTopicSection> createState() => _DailyTopicSectionState();
+}
+
+class _DailyTopicSectionState extends State<_DailyTopicSection> {
+  final _controller = TextEditingController();
+  bool _synced = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        // Sync controller once settings have loaded
+        if (!_synced && !settings.isLoading) {
+          _controller.text = settings.dailyTopic;
+          _synced = true;
+        }
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_awesome,
+                        color: AppColors.accent, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Auto-Post Topic',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'AI will generate 2 posts per day about this topic automatically',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _controller,
+                  onChanged: settings.setDailyTopic,
+                  decoration: const InputDecoration(
+                    hintText:
+                        'e.g. daily latest trends in AI, startup growth tips',
+                    prefixIcon: Icon(Icons.lightbulb_outline),
+                  ),
+                  maxLines: 1,
+                ),
+                if (settings.dailyTopic.isNotEmpty) ...[  
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withAlpha(20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline,
+                            color: AppColors.accent, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'AI will auto-generate posts about "${settings.dailyTopic}"',
+                            style: const TextStyle(
+                              color: AppColors.accent,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

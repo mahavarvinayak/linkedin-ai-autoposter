@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { generateLinkedInPost } from "@/server/linkflow-backend";
+import { generateLinkedInPost } from "@/ai/flows/generate-linkedin-post-flow";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const currentDay = now.toLocaleDateString("en-US", { weekday: "lowercase" });
+    const currentDay = now.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
     const currentHour = String(now.getHours()).padStart(2, "0");
     const currentMinute = String(now.getMinutes()).padStart(2, "0");
     const currentTime = `${currentHour}:${currentMinute}`;
@@ -57,8 +57,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (shouldPost) {
+      // Read configured daily topic from automation settings
+      const automationRef = doc(db, "users", "default", "settings", "automation");
+      const automationSnap = await getDoc(automationRef);
+      const dailyTopic = automationSnap.exists()
+        ? (automationSnap.data().dailyTopic as string | undefined) || "latest trends in AI and technology"
+        : "latest trends in AI and technology";
+
       // Time to post!
-      const postResult = await generateLinkedInPost();
+      const postResult = await generateLinkedInPost({ topic: dailyTopic });
       
       return NextResponse.json(
         { 

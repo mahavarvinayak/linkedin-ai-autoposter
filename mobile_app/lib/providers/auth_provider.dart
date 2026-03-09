@@ -26,17 +26,23 @@ class AppAuthProvider extends ChangeNotifier {
 
   Future<void> _onAuthStateChanged(User? user) async {
     _user = user;
-    if (user != null) {
-      _appUser = await _firestoreService.getUser(user.uid);
-      if (_appUser == null) {
-        _appUser = AppUser(userId: user.uid);
-        await _firestoreService.createOrUpdateUser(_appUser!);
+    try {
+      if (user != null) {
+        _appUser = await _firestoreService.getUser(user.uid);
+        if (_appUser == null) {
+          _appUser = AppUser(userId: user.uid);
+          await _firestoreService.createOrUpdateUser(_appUser!);
+        }
+      } else {
+        _appUser = null;
       }
-    } else {
-      _appUser = null;
+    } catch (e) {
+      // Firestore may fail (e.g. permission error) — still proceed with auth state
+      _error = null; // don't show a cryptic error, just continue
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> signInWithEmail(String email, String password) async {
@@ -48,8 +54,13 @@ class AppAuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      // _isLoading will be set to false by _onAuthStateChanged
     } on FirebaseAuthException catch (e) {
       _error = e.message ?? 'Authentication failed';
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'An unexpected error occurred. Please try again.';
       _isLoading = false;
       notifyListeners();
     }
@@ -64,8 +75,13 @@ class AppAuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      // _isLoading will be set to false by _onAuthStateChanged
     } on FirebaseAuthException catch (e) {
       _error = e.message ?? 'Registration failed';
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'An unexpected error occurred. Please try again.';
       _isLoading = false;
       notifyListeners();
     }

@@ -39,8 +39,9 @@ export default function AutomationPage() {
   const [enabled, setEnabled] = useState(false)
   const [postingTime, setPostingTime] = useState("09:00")
   const [targetAccountType, setTargetAccountType] = useState("personal")
-  const [postCategory, setPostCategory] = useState("Artificial Intelligence")
+  const [postCategory, setPostCategory] = useState("")
 
+  // Load automation settings (user doc + global automation settings)
   useEffect(() => {
     if (userData) {
       setEnabled(userData.automationEnabled ?? false)
@@ -49,23 +50,42 @@ export default function AutomationPage() {
     }
   }, [userData])
 
-  const handleSave = () => {
+  // Load dailyTopic from automation settings
+  useEffect(() => {
+    fetch("/api/automation")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.dailyTopic) setPostCategory(data.dailyTopic)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSave = async () => {
     if (!userDocRef) return;
     
     setIsSaving(true)
+    // Save user-specific settings
     updateDocumentNonBlocking(userDocRef, {
       automationEnabled: enabled,
       postingTime: postingTime,
       targetAccountType: targetAccountType,
     })
+    // Save global automation topic used by GitHub Actions
+    await fetch("/api/automation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dailyTopic: postCategory,
+        automationEnabled: enabled,
+        targetType: targetAccountType,
+      }),
+    }).catch(() => {})
     
-    setTimeout(() => {
-      setIsSaving(false)
-      toast({
-        title: "Automation updated",
-        description: `Daily posting is now ${enabled ? 'active' : 'paused'}.`,
-      })
-    }, 500)
+    setIsSaving(false)
+    toast({
+      title: "Automation updated",
+      description: `Daily posting is now ${enabled ? 'active' : 'paused'}.`,
+    })
   }
 
   if (isDocLoading) {
@@ -154,13 +174,13 @@ export default function AutomationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Default Category / Topic</Label>
+                <Label>Daily Auto-Post Topic</Label>
                 <Input 
-                  placeholder="e.g. Artificial Intelligence, B2B SaaS, Modern Work" 
+                  placeholder="e.g. daily latest trends in AI, startup growth, future of work" 
                   value={postCategory}
                   onChange={(e) => setPostCategory(e.target.value)}
                 />
-                <p className="text-[10px] text-muted-foreground italic">The AI uses this to maintain consistent brand voice.</p>
+                <p className="text-[10px] text-muted-foreground italic">AI generates 2 posts per day about this topic automatically — set it once, never touch it again.</p>
               </div>
             </CardContent>
             <CardFooter className="border-t p-6 flex justify-end">

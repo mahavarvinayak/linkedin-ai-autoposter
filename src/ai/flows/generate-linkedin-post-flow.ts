@@ -82,7 +82,7 @@ const generateLinkedInPostFlow = ai.defineFlow(
     inputSchema: GenerateLinkedInPostInputSchema,
     outputSchema: GenerateLinkedInPostOutputSchema,
   },
-  async (input) => {
+  async (input: GenerateLinkedInPostInput = { topic: 'technology' }) => {
     const { output } = await generateLinkedInPostPrompt(input);
     if (!output) {
       throw new Error('Failed to generate LinkedIn post content.');
@@ -93,7 +93,8 @@ const generateLinkedInPostFlow = ai.defineFlow(
 
 // Wrapper function
 export async function generateLinkedInPost(
-  input: GenerateLinkedInPostInput
+  input?: GenerateLinkedInPostInput
 ): Promise<GenerateLinkedInPostOutput> {
-  return generateLinkedInPostFlow(input);
+  const finalInput: GenerateLinkedInPostInput = input ?? { topic: 'technology' };
+  return generateLinkedInPostFlow(finalInput);
 }

@@ -40,6 +40,17 @@ export function getSdks(firebaseApp: FirebaseApp) {
   };
 }
 
+// Helper to obtain a Firestore instance in both client and server contexts.
+export function getDb() {
+  if (!getApps().length) {
+    initializeFirebase();
+  }
+  return getFirestore(getApp());
+}
+
+// Backwards-compatible named export used across the codebase
+export const db = getDb();
+
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';

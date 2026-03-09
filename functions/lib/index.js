@@ -351,12 +351,13 @@ exports.fetchAnalytics = (0, https_1.onRequest)(async (req, res) => {
 exports.updateAutomation = (0, https_1.onRequest)(async (req, res) => {
     try {
         const decodedToken = await verifyAuth(req);
-        const { enabled, postingTime, targetType, organizationId } = req.body;
+        const { enabled, postingTime, targetType, organizationId, dailyTopic } = req.body;
         await db.collection("users").doc(decodedToken.uid).set({
             automationEnabled: enabled,
             postingTime,
             targetType,
             selectedOrganizationId: organizationId || null,
+            ...(dailyTopic !== undefined && { dailyTopic }),
         }, { merge: true });
         res.json({ success: true });
     }
@@ -408,20 +409,11 @@ exports.scheduledDailyPost = (0, scheduler_1.onSchedule)({
         if (!userData.linkedinAccessToken)
             continue;
         try {
-            // Generate AI post
+            // Generate AI post using user's configured daily topic
             const genAI = new generative_ai_1.GoogleGenerativeAI(geminiApiKey.value());
             const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-            const topics = [
-                "AI and machine learning trends",
-                "startup growth strategies",
-                "technology leadership",
-                "future of work",
-                "digital transformation",
-                "productivity and efficiency",
-                "innovation in tech",
-            ];
-            const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-            const prompt = `Generate a highly engaging LinkedIn post about "${randomTopic}".
+            const topic = userData.dailyTopic || "latest trends in AI and technology";
+            const prompt = `Generate a highly engaging LinkedIn post about "${topic}".
 
 The post must:
 - Start with a strong hook

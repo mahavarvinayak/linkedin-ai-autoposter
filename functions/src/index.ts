@@ -390,7 +390,7 @@ export const fetchAnalytics = onRequest(async (req, res) => {
 export const updateAutomation = onRequest(async (req, res) => {
   try {
     const decodedToken = await verifyAuth(req);
-    const {enabled, postingTime, targetType, organizationId} = req.body;
+    const {enabled, postingTime, targetType, organizationId, dailyTopic} = req.body;
 
     await db.collection("users").doc(decodedToken.uid).set(
       {
@@ -398,6 +398,7 @@ export const updateAutomation = onRequest(async (req, res) => {
         postingTime,
         targetType,
         selectedOrganizationId: organizationId || null,
+        ...(dailyTopic !== undefined && {dailyTopic}),
       },
       {merge: true}
     );
@@ -461,22 +462,13 @@ export const scheduledDailyPost = onSchedule(
       if (!userData.linkedinAccessToken) continue;
 
       try {
-        // Generate AI post
+        // Generate AI post using user's configured daily topic
         const genAI = new GoogleGenerativeAI(geminiApiKey.value());
         const model = genAI.getGenerativeModel({model: "gemini-2.0-flash"});
 
-        const topics = [
-          "AI and machine learning trends",
-          "startup growth strategies",
-          "technology leadership",
-          "future of work",
-          "digital transformation",
-          "productivity and efficiency",
-          "innovation in tech",
-        ];
-        const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+        const topic = (userData.dailyTopic as string | undefined) || "latest trends in AI and technology";
 
-        const prompt = `Generate a highly engaging LinkedIn post about "${randomTopic}".
+        const prompt = `Generate a highly engaging LinkedIn post about "${topic}".
 
 The post must:
 - Start with a strong hook

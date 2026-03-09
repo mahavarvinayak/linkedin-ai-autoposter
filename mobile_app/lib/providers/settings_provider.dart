@@ -10,6 +10,7 @@ class SettingsProvider extends ChangeNotifier {
   String _postingTime = '09:00';
   String _targetType = 'personal';
   String? _selectedOrgId;
+  String _dailyTopic = '';
   bool _isLoading = false;
   bool _isSaving = false;
   String? _error;
@@ -18,6 +19,7 @@ class SettingsProvider extends ChangeNotifier {
   String get postingTime => _postingTime;
   String get targetType => _targetType;
   String? get selectedOrgId => _selectedOrgId;
+  String get dailyTopic => _dailyTopic;
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   String? get error => _error;
@@ -35,6 +37,7 @@ class SettingsProvider extends ChangeNotifier {
         _automationEnabled = appUser.automationEnabled;
         _postingTime = appUser.postingTime ?? '09:00';
         _targetType = appUser.targetType;
+        _dailyTopic = appUser.dailyTopic ?? '';
         _selectedOrgId = appUser.selectedOrganizationId ??
           (appUser.organizationIds.isNotEmpty
             ? appUser.organizationIds.first
@@ -68,6 +71,11 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDailyTopic(String topic) {
+    _dailyTopic = topic;
+    notifyListeners();
+  }
+
   Future<void> saveSettings() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -82,6 +90,7 @@ class SettingsProvider extends ChangeNotifier {
         'automationEnabled': _automationEnabled,
         'postingTime': _postingTime,
         'targetType': _targetType,
+        'dailyTopic': _dailyTopic,
         'selectedOrganizationId': _selectedOrgId,
         'organizationIds': _selectedOrgId != null && _selectedOrgId!.isNotEmpty
             ? [_selectedOrgId]
@@ -96,6 +105,7 @@ class SettingsProvider extends ChangeNotifier {
         postingTime: _postingTime,
         targetType: _targetType,
         organizationId: _selectedOrgId,
+        dailyTopic: _dailyTopic,
       );
     } catch (e) {
       _error = 'Failed to save settings';
