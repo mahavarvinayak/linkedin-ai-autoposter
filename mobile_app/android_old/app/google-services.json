@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "546955373171",
+    "project_id": "studio-1013588681-626a8",
+    "storage_bucket": "studio-1013588681-626a8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:546955373171:android:d686e340e6804685565806",
+        "android_client_info": {
+          "package_name": "com.linkflowai.linkflow_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSqa7COIy6Ez78h7g1uFhH-j28SlHDONM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

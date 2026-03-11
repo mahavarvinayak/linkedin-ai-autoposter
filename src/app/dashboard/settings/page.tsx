@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,15 +14,39 @@ import {
   Bell,
   Save,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useUser } from "@/firebase"
+import { useUser, useFirestore } from "@/firebase"
+import { doc, getDoc } from "firebase/firestore"
 
 export default function SettingsPage() {
   const { user } = useUser()
+  const firestore = useFirestore()
   const { toast } = useToast()
+  
   const [isSaving, setIsSaving] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [linkedinConnected, setLinkedinConnected] = useState(false)
+
+  useEffect(() => {
+    if (!user || !firestore) return;
+    const fetchUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().linkedinAccessToken) {
+          setLinkedinConnected(true);
+        } else {
+          setLinkedinConnected(false);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data for settings", error);
+      }
+    };
+    fetchUserData();
+  }, [user, firestore]);
 
   const handleSave = () => {
     setIsSaving(true)
@@ -34,6 +57,58 @@ export default function SettingsPage() {
         description: "Your settings have been saved successfully.",
       })
     }, 1000)
+  }
+
+  const handleConnectLinkedin = async () => {
+    if (!user) return;
+    setIsConnecting(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/linkedinAuthUrl", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Failed to get auth URL");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to start LinkedIn connection",
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  const handleDisconnectLinkedin = async () => {
+    if (!user) return;
+    setIsDisconnecting(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/disconnectLinkedIn", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setLinkedinConnected(false);
+        toast({ title: "Disconnected from LinkedIn" });
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to disconnect");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Disconnection Failed",
+        description: error.message || "Failed to disconnect LinkedIn",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDisconnecting(false);
+    }
   }
 
   return (
@@ -97,25 +172,43 @@ export default function SettingsPage() {
               <CardDescription>Manage your authenticated LinkedIn accounts.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 border">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded bg-blue-600 flex items-center justify-center text-white">
-                    <Linkedin className="w-6 h-6" />
+              {linkedinConnected ? (
+                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 border">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded bg-blue-600 flex items-center justify-center text-white">
+                      <Linkedin className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">Authenticated Account</p>
+                      <p className="text-xs text-muted-foreground">{user?.displayName || "Connected"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-sm">Authenticated Account</p>
-                    <p className="text-xs text-muted-foreground">{user?.displayName || "Connected"}</p>
-                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-destructive"
+                    onClick={handleDisconnectLinkedin}
+                    disabled={isDisconnecting}
+                  >
+                    {isDisconnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Disconnect"}
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" className="text-destructive">Disconnect</Button>
-              </div>
-
-              <div className="p-4 rounded-lg border border-dashed border-primary/30 flex flex-col items-center justify-center py-8 text-center bg-primary/5">
-                <Linkedin className="w-8 h-8 text-primary/50 mb-2" />
-                <p className="text-sm font-medium">Connect another account</p>
-                <p className="text-xs text-muted-foreground mb-4">Manage multiple profiles or company pages.</p>
-                <Button variant="outline" size="sm">Add LinkedIn Account</Button>
-              </div>
+              ) : (
+                <div className="p-4 rounded-lg border border-dashed border-primary/30 flex flex-col items-center justify-center py-8 text-center bg-primary/5">
+                  <Linkedin className="w-8 h-8 text-primary/50 mb-2" />
+                  <p className="text-sm font-medium">Connect another account</p>
+                  <p className="text-xs text-muted-foreground mb-4">Manage multiple profiles or company pages.</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleConnectLinkedin}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    {isConnecting ? "Connecting..." : "Add LinkedIn Account"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

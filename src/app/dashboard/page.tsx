@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,16 +11,41 @@ import {
   TrendingUp, 
   ArrowRight,
   Plus,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
+import { useUser, useFirestore } from "@/firebase"
+import { doc, getDoc } from "firebase/firestore"
 
 export default function DashboardPage() {
+  const { user } = useUser()
+  const firestore = useFirestore()
+  const [linkedinConnected, setLinkedinConnected] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!user || !firestore) return;
+    const fetchUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().linkedinAccessToken) {
+          setLinkedinConnected(true);
+        } else {
+          setLinkedinConnected(false);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data for dashboard", error);
+        setLinkedinConnected(false);
+      }
+    };
+    fetchUserData();
+  }, [user, firestore]);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold">Welcome back, User</h1>
+          <h1 className="text-3xl font-headline font-bold">Welcome back, {user?.displayName?.split(" ")[0] || "User"}</h1>
           <p className="text-muted-foreground">Here's an overview of your LinkedIn automation status.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -39,11 +65,21 @@ export default function DashboardPage() {
         <Card className="bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Status</CardTitle>
-            <Badge variant="default" className="bg-green-500/10 text-green-500 hover:bg-green-500/20">Active</Badge>
+            {linkedinConnected === null ? (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            ) : linkedinConnected ? (
+              <Badge variant="default" className="bg-green-500/10 text-green-500 hover:bg-green-500/20">Active</Badge>
+            ) : (
+              <Badge variant="secondary" className="text-muted-foreground">Disconnected</Badge>
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">LinkedIn Connected</div>
-            <p className="text-xs text-muted-foreground">Connected as Personal Profile</p>
+            <div className="text-2xl font-bold">
+              {linkedinConnected === null ? "..." : linkedinConnected ? "LinkedIn Connected" : "Not Connected"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {linkedinConnected ? "Ready to auto-post" : "Please connect your account in Settings"}
+            </p>
           </CardContent>
         </Card>
 
@@ -112,28 +148,29 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Connected Pages</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-md bg-secondary/30">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center font-bold text-primary">P</div>
-                <div>
-                  <p className="text-sm font-medium">Personal Profile</p>
-                  <p className="text-xs text-green-500">Connected</p>
+            {linkedinConnected ? (
+              <div className="flex items-center justify-between p-3 rounded-md bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center font-bold text-primary">
+                    {user?.displayName?.charAt(0) || "P"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{user?.displayName || "Personal Profile"}</p>
+                    <p className="text-xs text-green-500">Connected</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-md bg-secondary/30">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center font-bold text-accent">T</div>
-                <div>
-                  <p className="text-sm font-medium">TechInsights Co.</p>
-                  <p className="text-xs text-muted-foreground">Admin Access</p>
-                </div>
+            ) : (
+              <div className="p-4 text-center text-sm text-muted-foreground border border-dashed rounded-md mb-4 bg-secondary/20">
+                No pages connected yet.
               </div>
-              <Badge variant="outline">Admin</Badge>
-            </div>
-            <Button variant="outline" className="w-full text-xs h-8">
-              <Plus className="w-3 h-3 mr-2" /> Connect New Page
-            </Button>
+            )}
+            
+            <Link href="/dashboard/settings" className="block w-full">
+              <Button variant="outline" className="w-full text-xs h-8">
+                <Plus className="w-3 h-3 mr-2" /> Manage Connections
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

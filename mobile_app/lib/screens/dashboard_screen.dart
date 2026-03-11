@@ -9,6 +9,7 @@ import 'create_post_screen.dart';
 import 'analytics_screen.dart';
 import 'automation_screen.dart';
 import 'history_screen.dart';
+import 'competitor_analysis_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -43,6 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final screens = [
       const _DashboardHome(),
       const CreatePostScreen(),
+      const CompetitorAnalysisScreen(),
       const AnalyticsScreen(),
       const AutomationScreen(),
     ];
@@ -52,11 +54,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline),
@@ -64,9 +67,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: 'Create',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.person_search_outlined),
+            activeIcon: Icon(Icons.person_search),
+            label: 'Spy',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.analytics_outlined),
             activeIcon: Icon(Icons.analytics),
-            label: 'Analytics',
+            label: 'Stats',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),

@@ -66,6 +66,27 @@ class CloudFunctionService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
+  /// Analyze competitor post via Cloud Function
+  Future<Map<String, dynamic>> analyzeCompetitor({
+    required String competitorContent,
+    required String topic,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/analyzeCompetitor'),
+      headers: _headers,
+      body: json.encode({
+        'competitorContent': competitorContent,
+        'topic': topic,
+      }),
+    );
+    // Print the error if it fails for easier debugging in adb logcat
+    if (response.statusCode != 200) {
+      print('Failed analyzeCompetitor with status ${response.statusCode}');
+      throw Exception('Failed to analyze competitor');
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
   /// Publish a post to LinkedIn via Cloud Function
   Future<Map<String, dynamic>> publishToLinkedIn({
     required String content,

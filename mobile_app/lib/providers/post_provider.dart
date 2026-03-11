@@ -68,6 +68,35 @@ class PostProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> analyzeCompetitor({
+    required String competitorContent,
+    required String topic,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _isGenerating = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final token = await user.getIdToken();
+      final service = CloudFunctionService(token!);
+      final result = await service.analyzeCompetitor(
+        competitorContent: competitorContent,
+        topic: topic,
+      );
+
+      _generatedContent = result['caption'] as String?;
+      _generatedHashtags = List<String>.from(result['hashtags'] ?? []);
+    } catch (e) {
+      _error = 'Failed to analyze competitor';
+    }
+
+    _isGenerating = false;
+    notifyListeners();
+  }
+
   Future<void> savePost({
     required String content,
     required List<String> hashtags,

@@ -293,6 +293,63 @@ Respond ONLY with valid JSON with two keys:
   }
 }
 
+export async function handleAnalyzeCompetitor(req: NextRequest) {
+  try {
+    await verifyAuth(req);
+    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
+    const body = await readJsonBody(req);
+
+    const competitorContent = (body.competitorContent as string | undefined)?.trim();
+    const topic = (body.topic as string | undefined)?.trim();
+
+    if (!competitorContent || !topic) {
+      return jsonError("Missing competitorContent or topic", 400);
+    }
+
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({model: "gemini-2.0-flash"});
+
+    const prompt = `You are an expert LinkedIn ghostwriter. I will give you a few posts from a competitor, and a new topic I want to write about.
+    
+COMPETITOR's POSTS:
+"""
+${competitorContent}
+"""
+
+YOUR TASK:
+1. Analyze the competitor's writing style, tone, sentence length, and formatting techniques (e.g., how they use line breaks, emojis, or hooks).
+2. Write a completely fresh, unique, and engaging LinkedIn post about THIS NEW TOPIC: "${topic}".
+3. IMPORTANT: Use the EXACT SAME tone, formatting style, and structure as the competitor, but do NOT copy their specific facts, company details, or sentences. The new post must be completely original content but feel like it was written by the same person.
+4. Have a maximum caption length of 1500 characters.
+5. Include 5-10 highly relevant hashtags.
+
+Respond ONLY with valid JSON with two keys:
+- "caption": the post text (string)
+- "hashtags": array of hashtag strings (each starting with #)`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      return jsonError("Failed to parse AI response", 500);
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      caption?: string;
+      hashtags?: string[];
+    };
+
+    return NextResponse.json({
+      caption: parsed.caption || "",
+      hashtags: parsed.hashtags || [],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to analyze competitor";
+    return jsonError(message, 500);
+  }
+}
+
 export async function handlePublishPost(req: NextRequest) {
   try {
     const db = getDb();

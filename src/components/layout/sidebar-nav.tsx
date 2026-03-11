@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -11,13 +10,15 @@ import {
   Zap,
   Globe,
   BarChart3,
-  LogOut
+  LogOut,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Create Post", href: "/dashboard/create", icon: PenSquare },
+  { name: "Competitor Analysis", href: "/dashboard/competitor-analysis", icon: Sparkles },
   { name: "Post History", href: "/dashboard/history", icon: History },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "AI Settings", href: "/dashboard/ai-settings", icon: Zap },
