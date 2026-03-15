@@ -68,6 +68,24 @@ class CloudFunctionService {
     return data as Map<String, dynamic>;
   }
 
+  /// Generate an AI image via Cloud Function
+  Future<Map<String, dynamic>> generateAIImage({
+    required String topic,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/generateImage'),
+      headers: _headers,
+      body: json.encode({
+        'topic': topic,
+      }),
+    );
+    final data = json.decode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['error'] ?? 'Failed to generate AI image');
+    }
+    return data as Map<String, dynamic>;
+  }
+
   /// Analyze competitor post via Cloud Function
   Future<Map<String, dynamic>> analyzeCompetitor({
     required String competitorContent,
@@ -94,6 +112,7 @@ class CloudFunctionService {
     required String content,
     required String targetType,
     String? organizationId,
+    String? imageUrl,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/publishPost'),
@@ -102,6 +121,7 @@ class CloudFunctionService {
         'content': content,
         'targetType': targetType,
         'organizationId': organizationId,
+        'imageUrl': imageUrl,
       }),
     );
     final data = json.decode(response.body);

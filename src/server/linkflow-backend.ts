@@ -333,6 +333,41 @@ Respond ONLY with valid JSON with two keys:
   }
 }
 
+export async function handleGenerateImage(req: NextRequest) {
+  try {
+    const decodedToken = await verifyAuth(req);
+    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
+    const body = await readJsonBody(req);
+
+    const topic = (body.topic as string | undefined)?.trim();
+    if (!topic) {
+      return jsonError("Missing topic for image generation", 400);
+    }
+
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `Generate a highly detailed, professional, and visually stunning image prompt for an AI image generator (like DALL-E or Midjourney).
+The image should represent the following topic for a LinkedIn post: "${topic}".
+The style should be modern, clean, and high-quality (e.g., 3D render, professional photography, or minimalist illustration).
+Keep the prompt concise but atmospheric. NO TEXT in the image.
+
+Respond ONLY with the prompt string.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const imagePrompt = response.text().trim();
+
+    // Use Pollinations.ai for free, instant image generation
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1080&height=1080&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+
+    return NextResponse.json({ success: true, imageUrl });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Image generation failed";
+    return jsonError(message, 500);
+  }
+}
+
 export async function handleAnalyzeCompetitor(req: NextRequest) {
   try {
     await verifyAuth(req);
@@ -429,6 +464,84 @@ export async function handlePublishPost(req: NextRequest) {
         ? `urn:li:organization:${organizationId}`
         : `urn:li:person:${userData.linkedinId}`;
 
+    let imageAsset = null;
+    const imageUrl = body.imageUrl as string | undefined;
+
+    if (imageUrl) {
+      console.log("Processing image upload for LinkedIn...");
+      try {
+        // 1. Register Upload
+        const registerResponse = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${userData.linkedinAccessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            registerUploadRequest: {
+              recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+              owner: author,
+              serviceRelationships: [
+                {
+                  relationshipType: "OWNER",
+                  identifier: "urn:li:userGeneratedContent",
+                },
+              ],
+            },
+          }),
+        });
+
+        if (!registerResponse.ok) {
+          const errorText = await registerResponse.text();
+          console.error("LinkedIn Asset Registration Error:", errorText);
+        } else {
+          const registerData = await registerResponse.json();
+          const uploadUrl = registerData.value.uploadMechanism["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"].uploadUrl;
+          imageAsset = registerData.value.asset;
+
+          // 2. Upload binary data
+          const imageFetch = await fetch(imageUrl);
+          const imageBlob = await imageFetch.blob();
+          const uploadResponse = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${userData.linkedinAccessToken}`,
+            },
+            body: imageBlob,
+          });
+
+          if (!uploadResponse.ok) {
+            console.error("LinkedIn Image Binary Upload Failed");
+            imageAsset = null;
+          }
+        }
+      } catch (imgError) {
+        console.error("Image upload sub-process failed:", imgError);
+        imageAsset = null;
+      }
+    }
+
+    const postBody: any = {
+      author,
+      lifecycleState: "PUBLISHED",
+      specificContent: {
+        "com.linkedin.ugc.ShareContent": {
+          shareCommentary: { text: content },
+          shareMediaCategory: imageAsset ? "IMAGE" : "NONE",
+          media: imageAsset ? [
+            {
+              status: "READY",
+              media: imageAsset,
+              title: { text: "Post Image" },
+            }
+          ] : [],
+        },
+      },
+      visibility: {
+        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+      },
+    };
+
     const linkedinResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
       method: "POST",
       headers: {
@@ -436,19 +549,7 @@ export async function handlePublishPost(req: NextRequest) {
         "Content-Type": "application/json",
         "X-Restli-Protocol-Version": "2.0.0",
       },
-      body: JSON.stringify({
-        author,
-        lifecycleState: "PUBLISHED",
-        specificContent: {
-          "com.linkedin.ugc.ShareContent": {
-            shareCommentary: { text: content },
-            shareMediaCategory: "NONE",
-          },
-        },
-        visibility: {
-          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-        },
-      }),
+      body: JSON.stringify(postBody),
     });
 
     if (!linkedinResponse.ok) {
@@ -529,6 +630,16 @@ export async function handleFetchAnalytics(req: NextRequest) {
       .collection("analytics")
       .doc(postUrn.replace(/[/:]/g, "_"))
       .set(analytics, { merge: true });
+
+    // Store history snapshot
+    await db
+      .collection("users")
+      .doc(decodedToken.uid)
+      .collection("analyticsHistory")
+      .add({
+        ...analytics,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
     return NextResponse.json(analytics);
   } catch (error) {

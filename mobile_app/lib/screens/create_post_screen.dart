@@ -50,6 +50,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  Future<void> _generateImage() async {
+    final provider = context.read<PostProvider>();
+    final topic = _topicController.text.trim();
+    final content = _contentController.text.trim();
+    
+    if (topic.isEmpty && content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a topic or content first')),
+      );
+      return;
+    }
+
+    await provider.generateAIImage(topic: topic.isNotEmpty ? topic : content);
+
+    if (provider.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.error!)),
+      );
+    }
+  }
+
   Future<void> _publishPost() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,6 +118,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       content: fullContent,
       targetType: _targetType,
       organizationId: organizationId,
+      imageUrl: provider.generatedImageUrl,
     );
 
     if (provider.error == null && mounted) {
@@ -192,34 +214,110 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     const SizedBox(height: 12),
                     Consumer<PostProvider>(
                       builder: (context, provider, _) {
-                        return SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed:
-                                provider.isGenerating ? null : _generatePost,
-                            icon: provider.isGenerating
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.auto_awesome),
-                            label: Text(provider.isGenerating
-                                ? 'Generating...'
-                                : 'Generate with AI'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
+                        return Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: provider.isGenerating ? null : _generatePost,
+                                icon: provider.isGenerating
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.auto_awesome),
+                                label: Text(provider.isGenerating
+                                    ? 'Generating Text...'
+                                    : 'Generate Text with AI'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: provider.isGenerating ? null : _generateImage,
+                                icon: const Icon(Icons.image_outlined),
+                                label: const Text('Generate Relevant Image'),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
                   ],
                 ),
               ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Image Preview (if available)
+            Consumer<PostProvider>(
+              builder: (context, provider, _) {
+                if (provider.generatedImageUrl == null && !provider.isGenerating) {
+                  return const SizedBox.shrink();
+                }
+                
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'AI Generated Image',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (provider.generatedImageUrl != null)
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () => provider.clearGenerated(),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: provider.isGenerating && provider.generatedImageUrl == null
+                              ? Container(
+                                  height: 200,
+                                  width: double.infinity,
+                                  color: AppColors.surfaceLight,
+                                  child: const Center(child: CircularProgressIndicator()),
+                                )
+                              : provider.generatedImageUrl != null 
+                                  ? Image.network(
+                                      provider.generatedImageUrl!,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Container(
+                                          height: 200,
+                                          width: double.infinity,
+                                          color: AppColors.surfaceLight,
+                                          child: const Center(child: CircularProgressIndicator()),
+                                        );
+                                      },
+                                    )
+                                  : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 16),

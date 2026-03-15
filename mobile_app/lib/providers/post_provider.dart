@@ -14,6 +14,7 @@ class PostProvider extends ChangeNotifier {
   String? _error;
   String? _generatedContent;
   List<String> _generatedHashtags = [];
+  String? _generatedImageUrl;
 
   List<Post> get posts => _posts;
   Post? get nextScheduledPost => _nextScheduledPost;
@@ -22,6 +23,7 @@ class PostProvider extends ChangeNotifier {
   String? get error => _error;
   String? get generatedContent => _generatedContent;
   List<String> get generatedHashtags => _generatedHashtags;
+  String? get generatedImageUrl => _generatedImageUrl;
 
   int get totalPosted => _posts.where((p) => p.status == 'posted').length;
   int get totalScheduled => _posts.where((p) => p.status == 'scheduled').length;
@@ -62,6 +64,28 @@ class PostProvider extends ChangeNotifier {
       _generatedHashtags = List<String>.from(result['hashtags'] ?? []);
     } catch (e) {
       _error = 'Failed to generate post';
+    }
+
+    _isGenerating = false;
+    notifyListeners();
+  }
+
+  Future<void> generateAIImage({required String topic}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _isGenerating = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final token = await user.getIdToken();
+      final service = CloudFunctionService(token!);
+      final result = await service.generateAIImage(topic: topic);
+
+      _generatedImageUrl = result['imageUrl'] as String?;
+    } catch (e) {
+      _error = 'Failed to generate image';
     }
 
     _isGenerating = false;
@@ -131,6 +155,7 @@ class PostProvider extends ChangeNotifier {
     required String content,
     required String targetType,
     String? organizationId,
+    String? imageUrl,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -146,6 +171,7 @@ class PostProvider extends ChangeNotifier {
         content: content,
         targetType: targetType,
         organizationId: organizationId,
+        imageUrl: imageUrl,
       );
 
       // Save the post with the LinkedIn URN
@@ -180,6 +206,7 @@ class PostProvider extends ChangeNotifier {
   void clearGenerated() {
     _generatedContent = null;
     _generatedHashtags = [];
+    _generatedImageUrl = null;
     notifyListeners();
   }
 
