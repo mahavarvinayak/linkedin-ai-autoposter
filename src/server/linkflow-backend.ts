@@ -853,9 +853,20 @@ export async function runDailyPostAutomation(req: NextRequest) {
       // Use hardcoded schedule based on current IST day
       const postingTimes = WEEKLY_SCHEDULE[istNow.day] || ["09:00", "18:00"];
 
-      if (!postingTimes.includes(istNow.time)) continue;
-      // Prevent double posting in the same minute slot
-      if (userData.lastAutoPostedDate === istNow.dateKey && userData.lastAutoPostedTime === istNow.time) continue;
+      // Convert HH:MM to total minutes for comparison
+      const toMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+      const nowMinutes = toMinutes(istNow.time);
+
+      // Check if any scheduled time is within ±15 minutes of current time
+      // This allows cron (which runs every 30min at :00/:30) to catch times like 10:17, 12:46
+      const matchedTime = postingTimes.find(pt => Math.abs(nowMinutes - toMinutes(pt)) <= 15);
+
+      if (!matchedTime) continue;
+      // Prevent double posting: store the MATCHED scheduled time, not the cron trigger time
+      if (userData.lastAutoPostedDate === istNow.dateKey && userData.lastAutoPostedTime === matchedTime) continue;
       if (!userData.linkedinAccessToken) continue;
 
       processedUsers += 1;
@@ -945,7 +956,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
         await db.collection("users").doc(userDoc.id).set(
           {
             lastAutoPostedDate: istNow.dateKey,
-            lastAutoPostedTime: istNow.time,
+            lastAutoPostedTime: matchedTime,
           },
           { merge: true }
         );
