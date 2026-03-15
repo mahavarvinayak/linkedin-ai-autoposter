@@ -27,6 +27,31 @@ const DEFAULT_LINKEDIN_SCOPES = [
   "w_member_social",
 ].join(" ");
 
+async function generateWithFallback(
+  genAI: GoogleGenerativeAI, 
+  preferredModel: string, 
+  prompt: string | any,
+  fallbacks: string[] = ["gemini-2.0-flash", "gemini-1.5-flash"]
+) {
+  const modelsToTry = [preferredModel, ...fallbacks];
+  let lastError: any = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[AI] Attempting generation with model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return { response, modelUsed: modelName };
+    } catch (err) {
+      console.warn(`[AI Warning] Model ${modelName} failed:`, err);
+      lastError = err;
+      continue;
+    }
+  }
+  throw lastError || new Error("All models failed");
+}
+
 function ensureAdminInitialized() {
   if (admin.apps.length > 0) return;
 
@@ -304,11 +329,7 @@ export async function handleGeneratePost(req: NextRequest) {
     const category = (body.category as string | undefined)?.trim();
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using "Gemini 3 Flash" (Implementation: gemini-3-flash)
-    // Using gemini-3-flash as the primary string for 2026
-    console.log("[AI] Initializing Gemini with model: gemini-3-flash");
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
-
+    
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
 The post must:
@@ -323,10 +344,9 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
-    console.log("[AI] Sending prompt to gemini-3.0-flash...");
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const { response: postResponse, modelUsed: postModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+    console.log(`[AI Success] Used post model: ${postModel}`);
+    const text = postResponse.text();
     console.log("[AI] Raw Response length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
@@ -362,29 +382,28 @@ export async function handleGenerateImage(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using "Gemini 3 Flash" for prompt generation (Impl: gemini-3.0-flash)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
 
     const prompt = `Generate a highly detailed, professional, and visually stunning image description for a LinkedIn post.
 The image should represent the following topic: "${topic}".
 The style should be modern, clean, and high-quality. Respond ONLY with the description.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const imageDescription = response.text().trim();
+    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+    console.log(`[AI Success] Used description model: ${descModel}`);
+    const imageDescription = descResponse.text().trim();
 
     // [STRICT] Using "Nano Banana" (Implementation: gemini-3.1-flash-image)
-    const imageModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image" });
-    const imageResult = await imageModel.generateContent({
+    const imagePrompt = {
       contents: [{ role: "user", parts: [{ text: `Generate a LinkedIn-ready professional image for: ${imageDescription}` }] }],
       generationConfig: {
         // @ts-ignore - response_modalities is supported in Gemini 3.x/2026 SDK
         responseModalities: ["IMAGE"],
       }
-    } as any);
+    };
+
+    const { response: finalImageResponse, modelUsed: imageModelUsed } = await generateWithFallback(genAI, "gemini-3-flash-image", imagePrompt, ["gemini-3-flash", "gemini-2.0-flash-exp"]);
+    console.log(`[AI Image Success] Used model: ${imageModelUsed}`);
     
-    const imageResponse = await imageResult.response;
-    const imagePart = imageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+    const imagePart = finalImageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     
     if (!imagePart || !imagePart.inlineData) {
       console.warn("[AI] Native image generation returned no data. Falling back to Pollinations.");
@@ -449,9 +468,9 @@ YOUR TASK:
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` });
 
     console.log("[AI Spy] Analyzing competitor multimodal content for topic:", topic);
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const text = response.text();
+    const { response: spyResponse, modelUsed: spyModel } = await generateWithFallback(genAI, "gemini-3-flash", parts);
+    console.log(`[AI Spy Success] Used model: ${spyModel}`);
+    const text = spyResponse.text();
     console.log("[AI Spy] Response received, length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
@@ -759,8 +778,6 @@ export async function runDailyPostAutomation(req: NextRequest) {
     const db = getDb();
     const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using "Gemini 3 Flash" for all automated daily posts (Impl: gemini-2.0-flash)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
 
     const istNow = getIstNowParts();
     const usersSnapshot = await db.collection("users").where("automationEnabled", "==", true).get();
@@ -817,8 +834,9 @@ The post must:
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const { response: autoResponse, modelUsed: autoModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+        console.log(`[AI Auto Success] User ${userDoc.id} used model: ${autoModel}`);
+        const text = autoResponse.text();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
           failureCount += 1;
