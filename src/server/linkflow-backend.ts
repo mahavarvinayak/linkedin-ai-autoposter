@@ -180,6 +180,8 @@ export async function handleLinkedinCallback(req: NextRequest) {
     const state =
       (isGet ? params.get("state") : (body.state as string | undefined)) || undefined;
 
+    console.log(`LinkedIn Callback [${req.method}]: code=${code ? "present" : "missing"}, state=${state ? "present" : "missing"}`);
+
     let uid: string;
     if (req.headers.get("authorization")?.startsWith("Bearer ")) {
       const decodedToken = await verifyAuth(req);
@@ -187,6 +189,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
     } else if (state) {
       uid = decodeOAuthState(state);
     } else {
+      console.error("LinkedIn Callback: Missing auth context (no bearer token and no valid state)");
       return jsonError("Missing auth context", 401);
     }
 
@@ -195,6 +198,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
     }
 
     const redirectUri = getRedirectUri(req);
+    console.log(`LinkedIn Callback Redirect URI: ${redirectUri}`);
 
     const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
       method: "POST",
