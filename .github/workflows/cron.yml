@@ -1,0 +1,49 @@
+name: Cron - Daily Post & Analytics
+
+on:
+  schedule:
+    # Run every 30 minutes to catch all IST posting times
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  trigger-daily-post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Post Automation
+        run: |
+          echo "Triggering daily post automation at $(date -u '+%Y-%m-%d %H:%M UTC')"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://linkedin-ai-autoposter-phi.vercel.app/api/cron/daily-post")
+          echo "Response code: $RESPONSE"
+
+      - name: Trigger Scheduled Posts
+        run: |
+          curl -s -o /dev/null \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://linkedin-ai-autoposter-phi.vercel.app/api/runScheduledPosts"
+
+  trigger-analytics:
+    runs-on: ubuntu-latest
+    # Only refresh analytics every 6 hours (at :00 of hours 0,6,12,18)
+    if: github.event.schedule == '*/30 * * * *'
+    steps:
+      - name: Check if analytics hour
+        id: check
+        run: |
+          HOUR=$(date -u '+%H')
+          MINUTE=$(date -u '+%M')
+          if [[ "$MINUTE" == "00" ]] && [[ "$HOUR" == "00" || "$HOUR" == "06" || "$HOUR" == "12" || "$HOUR" == "18" ]]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Analytics Refresh
+        if: steps.check.outputs.run == 'true'
+        run: |
+          echo "Refreshing analytics..."
+          curl -s -o /dev/null \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://linkedin-ai-autoposter-phi.vercel.app/api/cron/refresh-analytics"
