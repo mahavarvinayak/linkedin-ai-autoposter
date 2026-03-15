@@ -9,6 +9,7 @@ import {
   handleUpdateAutomation,
   handleAnalyzeCompetitor,
   handleGenerateImage,
+  handlePingAI,
   runDailyPostAutomation,
   runScheduledPosts,
   runAnalyticsRefresh,
@@ -68,6 +69,9 @@ async function routeForAction(req: NextRequest, action: string) {
 
     case "runAnalyticsRefresh":
       return runAnalyticsRefresh(req);
+
+    case "pingAI":
+      return handlePingAI(req);
 
     default:
       return NextResponse.json({error: "Endpoint not found"}, {status: 404});

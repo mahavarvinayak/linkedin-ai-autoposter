@@ -63,7 +63,8 @@ class PostProvider extends ChangeNotifier {
       _generatedContent = result['caption'] as String?;
       _generatedHashtags = List<String>.from(result['hashtags'] ?? []);
     } catch (e) {
-      _error = 'Failed to generate post';
+      _error = 'AI generation failed: $e';
+      print('[PostProvider] generateAIPost error: $e');
     }
 
     _isGenerating = false;
@@ -85,7 +86,8 @@ class PostProvider extends ChangeNotifier {
 
       _generatedImageUrl = result['imageUrl'] as String?;
     } catch (e) {
-      _error = 'Failed to generate image';
+      _error = 'Image generation failed: $e';
+      print('[PostProvider] generateAIImage error: $e');
     }
 
     _isGenerating = false;
@@ -116,7 +118,8 @@ class PostProvider extends ChangeNotifier {
       _generatedContent = result['caption'] as String?;
       _generatedHashtags = List<String>.from(result['hashtags'] ?? []);
     } catch (e) {
-      _error = 'Failed to analyze competitor';
+      _error = 'Competitor analysis failed: $e';
+      print('[PostProvider] analyzeCompetitor error: $e');
     }
 
     _isGenerating = false;

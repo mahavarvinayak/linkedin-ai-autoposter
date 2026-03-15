@@ -52,6 +52,44 @@ async function generateWithFallback(
   throw lastError || new Error("All models failed");
 }
 
+/** Public diagnostic endpoint — no auth required */
+export async function handlePingAI(req: NextRequest) {
+  const diagnostics: Record<string, any> = {
+    timestamp: new Date().toISOString(),
+    envCheck: {},
+    modelTests: [],
+  };
+
+  // 1) Check env vars
+  const geminiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GENKIT_API_KEY?.trim();
+  diagnostics.envCheck.GEMINI_API_KEY = geminiKey ? `SET (${geminiKey.slice(0, 6)}...${geminiKey.slice(-4)})` : "MISSING";
+  diagnostics.envCheck.FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? "SET" : "MISSING";
+  diagnostics.envCheck.LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID ? "SET" : "MISSING";
+
+  if (!geminiKey) {
+    return NextResponse.json({ ...diagnostics, error: "GEMINI_API_KEY is not set on Vercel!" }, { status: 500 });
+  }
+
+  // 2) Try each model with a tiny prompt
+  const genAI = new GoogleGenerativeAI(geminiKey);
+  const testModels = ["gemini-3-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+
+  for (const modelName of testModels) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent("Say hello in one word.");
+      const text = result.response.text();
+      diagnostics.modelTests.push({ model: modelName, status: "OK", response: text.slice(0, 50) });
+      break; // Stop at first success
+    } catch (err: any) {
+      diagnostics.modelTests.push({ model: modelName, status: "FAILED", error: err.message || String(err) });
+    }
+  }
+
+  const anyWorking = diagnostics.modelTests.some((t: any) => t.status === "OK");
+  return NextResponse.json({ ...diagnostics, overallStatus: anyWorking ? "AI_WORKING" : "ALL_MODELS_FAILED" });
+}
+
 function ensureAdminInitialized() {
   if (admin.apps.length > 0) return;
 
