@@ -22,24 +22,31 @@ function ensureAdminInitialized() {
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!serviceAccountJson) {
+    console.warn("FIREBASE_SERVICE_ACCOUNT_JSON not found. Attempting default initialization...");
     admin.initializeApp();
     return;
   }
 
-  const parsed = JSON.parse(serviceAccountJson) as Record<string, string>;
-  const privateKey =
-    (parsed.privateKey || parsed.private_key || "").replace(/\\n/g, "\n") ||
-    undefined;
+  try {
+    const parsed = JSON.parse(serviceAccountJson) as Record<string, string>;
+    const privateKey =
+      (parsed.privateKey || parsed.private_key || "").replace(/\\n/g, "\n") ||
+      undefined;
 
-  const serviceAccount: admin.ServiceAccount = {
-    projectId: parsed.projectId || parsed.project_id,
-    clientEmail: parsed.clientEmail || parsed.client_email,
-    privateKey,
-  };
+    const serviceAccount: admin.ServiceAccount = {
+      projectId: parsed.projectId || parsed.project_id,
+      clientEmail: parsed.clientEmail || parsed.client_email,
+      privateKey,
+    };
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("Firebase Admin initialized with service account.");
+  } catch (e) {
+    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON or initialize Admin SDK:", e);
+    admin.initializeApp();
+  }
 }
 
 function getDb() {
@@ -52,11 +59,15 @@ function jsonError(message: string, status = 500) {
 }
 
 function getRequiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+  // Support aliases (e.g. GEMINI_API_KEY or GENKIT_API_KEY)
+  const names = name === "GEMINI_API_KEY" ? ["GEMINI_API_KEY", "GENKIT_API_KEY"] : [name];
+  
+  for (const n of names) {
+    const value = process.env[n]?.trim();
+    if (value) return value;
   }
-  return value;
+
+  throw new Error(`Missing required environment variable: ${name} (checked ${names.join(", ")})`);
 }
 
 function getRedirectUri(req: NextRequest): string {
