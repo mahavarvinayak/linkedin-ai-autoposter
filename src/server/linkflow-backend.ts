@@ -230,7 +230,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
       return jsonError(details, 400);
     }
 
-    const profileResponse = await fetch("https://api.linkedin.com/userinfo", {
+    const profileResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
       headers: {Authorization: `Bearer ${tokenData.access_token}`},
     });
 
@@ -291,7 +291,7 @@ export async function handleGeneratePost(req: NextRequest) {
     const category = (body.category as string | undefined)?.trim();
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({model: "gemini-2.0-flash"});
+    const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
 
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
