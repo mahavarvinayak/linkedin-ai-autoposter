@@ -304,8 +304,10 @@ export async function handleGeneratePost(req: NextRequest) {
     const category = (body.category as string | undefined)?.trim();
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using "Gemini 3 Flash" (Implementation: gemini-3.0-flash)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
+    // [STRICT] Using "Gemini 3 Flash" (Implementation: gemini-3-flash)
+    // Using gemini-3-flash as the primary string for 2026
+    console.log("[AI] Initializing Gemini with model: gemini-3-flash");
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
 
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
@@ -321,11 +323,11 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
-    console.log("Generating AI post for topic:", topic || category);
+    console.log("[AI] Sending prompt to gemini-3.0-flash...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    console.log("AI Raw Response received.");
+    console.log("[AI] Raw Response length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
@@ -342,6 +344,7 @@ Respond ONLY with valid JSON with two keys:
       hashtags: parsed.hashtags || [],
     });
   } catch (error) {
+    console.error("[AI Error] handleGeneratePost failed:", error);
     const message = error instanceof Error ? error.message : "Failed to generate post";
     return jsonError(message, 500);
   }
@@ -376,14 +379,15 @@ The style should be modern, clean, and high-quality. Respond ONLY with the descr
       contents: [{ role: "user", parts: [{ text: `Generate a LinkedIn-ready professional image for: ${imageDescription}` }] }],
       generationConfig: {
         // @ts-ignore - response_modalities is supported in Gemini 3.x/2026 SDK
-        response_modalities: ["IMAGE"],
+        responseModalities: ["IMAGE"],
       }
     } as any);
     
     const imageResponse = await imageResult.response;
-    const imagePart = imageResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    const imagePart = imageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     
     if (!imagePart || !imagePart.inlineData) {
+      console.warn("[AI] Native image generation returned no data. Falling back to Pollinations.");
       // Fallback to Pollinations if native generation fails or is restricted
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imageDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
       return NextResponse.json({ success: true, imageUrl });
@@ -414,8 +418,8 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using "Gemini 3 Flash" (Impl: gemini-3.0-flash)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
+    // [STRICT] Using Gemini 3 Flash for Competitor Analysis (Multimodal)
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
 
     let parts: any[] = [];
     if (screenshotData && screenshotData.startsWith("data:")) {
@@ -444,11 +448,11 @@ YOUR TASK:
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` });
 
-    console.log("Analyzing competitor multimodal content for topic:", topic);
+    console.log("[AI Spy] Analyzing competitor multimodal content for topic:", topic);
     const result = await model.generateContent(parts);
     const response = await result.response;
     const text = response.text();
-    console.log("Competitor Analysis AI response received.");
+    console.log("[AI Spy] Response received, length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
@@ -465,6 +469,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` })
       hashtags: parsed.hashtags || [],
     });
   } catch (error) {
+    console.error("[AI Spy Error] handleAnalyzeCompetitor failed:", error);
     const message = error instanceof Error ? error.message : "Failed to analyze competitor";
     return jsonError(message, 500);
   }
