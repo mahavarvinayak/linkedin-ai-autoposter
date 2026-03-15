@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/daily-post",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/cron/refresh-analytics",
-      "schedule": "0 */6 * * *"
-    }
-  ]
-}
+{}
