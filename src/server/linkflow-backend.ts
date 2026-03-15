@@ -31,7 +31,7 @@ async function generateWithFallback(
   genAI: GoogleGenerativeAI, 
   preferredModel: string, 
   prompt: string | any,
-  fallbacks: string[] = ["gemini-2.0-flash", "gemini-1.5-flash"]
+  fallbacks: string[] = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 ) {
   const modelsToTry = [preferredModel, ...fallbacks];
   let lastError: any = null;
@@ -382,7 +382,7 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
-    const { response: postResponse, modelUsed: postModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+    const { response: postResponse, modelUsed: postModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
     console.log(`[AI Success] Used post model: ${postModel}`);
     const text = postResponse.text();
     console.log("[AI] Raw Response length:", text.length);
@@ -425,7 +425,7 @@ export async function handleGenerateImage(req: NextRequest) {
 The image should represent the following topic: "${topic}".
 The style should be modern, clean, and high-quality. Respond ONLY with the description.`;
 
-    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
     console.log(`[AI Success] Used description model: ${descModel}`);
     const imageDescription = descResponse.text().trim();
 
@@ -438,7 +438,7 @@ The style should be modern, clean, and high-quality. Respond ONLY with the descr
       }
     };
 
-    const { response: finalImageResponse, modelUsed: imageModelUsed } = await generateWithFallback(genAI, "gemini-3-flash-image", imagePrompt, ["gemini-3-flash", "gemini-2.0-flash-exp"]);
+    const { response: finalImageResponse, modelUsed: imageModelUsed } = await generateWithFallback(genAI, "gemini-2.0-flash-exp", imagePrompt, ["gemini-2.5-flash", "gemini-2.0-flash"]);
     console.log(`[AI Image Success] Used model: ${imageModelUsed}`);
     
     const imagePart = finalImageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
@@ -506,7 +506,7 @@ YOUR TASK:
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` });
 
     console.log("[AI Spy] Analyzing competitor multimodal content for topic:", topic);
-    const { response: spyResponse, modelUsed: spyModel } = await generateWithFallback(genAI, "gemini-3-flash", parts);
+    const { response: spyResponse, modelUsed: spyModel } = await generateWithFallback(genAI, "gemini-2.5-flash", parts);
     console.log(`[AI Spy Success] Used model: ${spyModel}`);
     const text = spyResponse.text();
     console.log("[AI Spy] Response received, length:", text.length);
@@ -872,7 +872,7 @@ The post must:
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
-        const { response: autoResponse, modelUsed: autoModel } = await generateWithFallback(genAI, "gemini-3-flash", prompt);
+        const { response: autoResponse, modelUsed: autoModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
         console.log(`[AI Auto Success] User ${userDoc.id} used model: ${autoModel}`);
         const text = autoResponse.text();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
