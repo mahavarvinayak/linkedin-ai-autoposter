@@ -421,40 +421,46 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
 
-    const prompt = `Generate a highly detailed, professional, and visually stunning image description for a LinkedIn post.
+    // Step 1: Generate image description using text model (this works fine)
+    const descPrompt = `Generate a highly detailed, professional, and visually stunning image description for a LinkedIn post.
 The image should represent the following topic: "${topic}".
 The style should be modern, clean, and high-quality. Respond ONLY with the description.`;
 
-    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
-    console.log(`[AI Success] Used description model: ${descModel}`);
+    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-2.5-flash", descPrompt);
+    console.log(`[AI Image] Description generated with: ${descModel}`);
     const imageDescription = descResponse.text().trim();
 
-    // [STRICT] Using "Nano Banana" (Implementation: gemini-3.1-flash-image)
-    const imagePrompt = {
-      contents: [{ role: "user", parts: [{ text: `Generate a LinkedIn-ready professional image for: ${imageDescription}` }] }],
-      generationConfig: {
-        // @ts-ignore - response_modalities is supported in Gemini 3.x/2026 SDK
-        responseModalities: ["IMAGE"],
+    // Step 2: Try native Gemini image generation (may not be available)
+    try {
+      console.log("[AI Image] Attempting native Gemini image generation...");
+      const imageModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const imageResult = await imageModel.generateContent({
+        contents: [{ role: "user", parts: [{ text: `Generate a LinkedIn-ready professional image for: ${imageDescription}` }] }],
+        generationConfig: {
+          // @ts-ignore
+          responseModalities: ["IMAGE"],
+        }
+      } as any);
+      
+      const imageResponse = await imageResult.response;
+      const imagePart = imageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+      
+      if (imagePart?.inlineData) {
+        console.log("[AI Image] Native generation successful!");
+        const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+        return NextResponse.json({ success: true, imageUrl });
       }
-    };
-
-    const { response: finalImageResponse, modelUsed: imageModelUsed } = await generateWithFallback(genAI, "gemini-2.0-flash-exp", imagePrompt, ["gemini-2.5-flash", "gemini-2.0-flash"]);
-    console.log(`[AI Image Success] Used model: ${imageModelUsed}`);
-    
-    const imagePart = finalImageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-    
-    if (!imagePart || !imagePart.inlineData) {
-      console.warn("[AI] Native image generation returned no data. Falling back to Pollinations.");
-      // Fallback to Pollinations if native generation fails or is restricted
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imageDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
-      return NextResponse.json({ success: true, imageUrl });
+    } catch (nativeErr) {
+      console.warn("[AI Image] Native generation not available:", nativeErr);
     }
 
-    const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    // Step 3: Fallback to Pollinations (always works)
+    console.log("[AI Image] Using Pollinations Flux fallback for image generation");
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imageDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
     return NextResponse.json({ success: true, imageUrl });
 
-    return NextResponse.json({ success: true, imageUrl });
   } catch (error) {
+    console.error("[AI Image Error]:", error);
     const message = error instanceof Error ? error.message : "Image generation failed";
     return jsonError(message, 500);
   }
