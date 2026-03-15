@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.linkflow_ai"
+    namespace = "com.linkflowai.linkflow_ai"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

@@ -1,4 +1,4 @@
-package com.example.linkflow_ai
+package com.linkflowai.linkflow_ai
 
 import io.flutter.embedding.android.FlutterActivity
 
