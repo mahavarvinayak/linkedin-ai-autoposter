@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
-import {GoogleGenerativeAI} from "@google/generative-ai";
-import {NextRequest, NextResponse} from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextRequest, NextResponse } from "next/server";
 
 type JsonMap = Record<string, unknown>;
 
@@ -55,13 +55,13 @@ function getDb() {
 }
 
 function jsonError(message: string, status = 500) {
-  return NextResponse.json({error: message}, {status});
+  return NextResponse.json({ error: message }, { status });
 }
 
 function getRequiredEnv(name: string): string {
   // Support aliases (e.g. GEMINI_API_KEY or GENKIT_API_KEY)
   const names = name === "GEMINI_API_KEY" ? ["GEMINI_API_KEY", "GENKIT_API_KEY"] : [name];
-  
+
   for (const n of names) {
     const value = process.env[n]?.trim();
     if (value) return value;
@@ -83,12 +83,12 @@ function getLinkedinScopes(): string {
 }
 
 function encodeOAuthState(uid: string): string {
-  return Buffer.from(JSON.stringify({uid, ts: Date.now()})).toString("base64url");
+  return Buffer.from(JSON.stringify({ uid, ts: Date.now() })).toString("base64url");
 }
 
 function decodeOAuthState(state: string): string {
   const decoded = Buffer.from(state, "base64url").toString("utf8");
-  const parsed = JSON.parse(decoded) as {uid?: string};
+  const parsed = JSON.parse(decoded) as { uid?: string };
   if (!parsed.uid) {
     throw new Error("Invalid OAuth state");
   }
@@ -115,7 +115,7 @@ async function readJsonBody(req: NextRequest): Promise<JsonMap> {
   }
 }
 
-function getIstNowParts(): {dateKey: string; time: string} {
+function getIstNowParts(): { dateKey: string; time: string } {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
@@ -158,7 +158,7 @@ export async function handleLinkedinAuthUrl(req: NextRequest) {
       `state=${state}&` +
       `scope=${encodeURIComponent(scopes)}`;
 
-    return NextResponse.json({url});
+    return NextResponse.json({ url });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create auth URL";
     return jsonError(message, 401);
@@ -202,7 +202,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
 
     const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
       method: "POST",
-      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
@@ -231,7 +231,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
     }
 
     const profileResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
-      headers: {Authorization: `Bearer ${tokenData.access_token}`},
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
     if (!profileResponse.ok) {
@@ -261,7 +261,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
         linkedinAccessToken: tokenData.access_token,
         linkedinTokenExpiry: Date.now() + (tokenData.expires_in || 0) * 1000,
       },
-      {merge: true}
+      { merge: true }
     );
 
     if (isGet) {
@@ -269,12 +269,12 @@ export async function handleLinkedinCallback(req: NextRequest) {
         "<html><body style='font-family:Arial,sans-serif;padding:24px;'><h2>LinkedIn Connected</h2><p>You can return to LinkFlow AI app now.</p></body></html>",
         {
           status: 200,
-          headers: {"Content-Type": "text/html; charset=utf-8"},
+          headers: { "Content-Type": "text/html; charset=utf-8" },
         }
       );
     }
 
-    return NextResponse.json({success: true, linkedinId: profile.sub});
+    return NextResponse.json({ success: true, linkedinId: profile.sub });
   } catch (error) {
     const message = error instanceof Error ? error.message : "LinkedIn callback failed";
     return jsonError(message, 500);
@@ -291,7 +291,7 @@ export async function handleGeneratePost(req: NextRequest) {
     const category = (body.category as string | undefined)?.trim();
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({model: "gemini-1.5-flash"});
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
@@ -347,7 +347,7 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({model: "gemini-2.0-flash"});
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `You are an expert LinkedIn ghostwriter. I will give you a few posts from a competitor, and a new topic I want to write about.
     
@@ -410,10 +410,10 @@ export async function handlePublishPost(req: NextRequest) {
     const userDoc = await db.collection("users").doc(decodedToken.uid).get();
     const userData = userDoc.data() as
       | {
-          linkedinId?: string;
-          linkedinAccessToken?: string;
-          linkedinTokenExpiry?: number;
-        }
+        linkedinId?: string;
+        linkedinAccessToken?: string;
+        linkedinTokenExpiry?: number;
+      }
       | undefined;
 
     if (!userData?.linkedinAccessToken) {
@@ -441,7 +441,7 @@ export async function handlePublishPost(req: NextRequest) {
         lifecycleState: "PUBLISHED",
         specificContent: {
           "com.linkedin.ugc.ShareContent": {
-            shareCommentary: {text: content},
+            shareCommentary: { text: content },
             shareMediaCategory: "NONE",
           },
         },
@@ -456,7 +456,7 @@ export async function handlePublishPost(req: NextRequest) {
       return jsonError(`LinkedIn API error: ${errorBody}`, linkedinResponse.status);
     }
 
-    const linkedinData = (await linkedinResponse.json()) as {id?: string};
+    const linkedinData = (await linkedinResponse.json()) as { id?: string };
 
     await db.collection("users").doc(decodedToken.uid).collection("posts").add({
       content,
@@ -489,8 +489,8 @@ export async function handleFetchAnalytics(req: NextRequest) {
     const userDoc = await db.collection("users").doc(decodedToken.uid).get();
     const userData = userDoc.data() as
       | {
-          linkedinAccessToken?: string;
-        }
+        linkedinAccessToken?: string;
+      }
       | undefined;
 
     if (!userData?.linkedinAccessToken) {
@@ -508,8 +508,8 @@ export async function handleFetchAnalytics(req: NextRequest) {
     );
 
     const socialData = (await socialResponse.json()) as {
-      likesSummary?: {totalLikes?: number};
-      commentsSummary?: {totalFirstLevelComments?: number};
+      likesSummary?: { totalLikes?: number };
+      commentsSummary?: { totalFirstLevelComments?: number };
       shareCount?: number;
     };
 
@@ -528,7 +528,7 @@ export async function handleFetchAnalytics(req: NextRequest) {
       .doc(decodedToken.uid)
       .collection("analytics")
       .doc(postUrn.replace(/[/:]/g, "_"))
-      .set(analytics, {merge: true});
+      .set(analytics, { merge: true });
 
     return NextResponse.json(analytics);
   } catch (error) {
@@ -557,10 +557,10 @@ export async function handleUpdateAutomation(req: NextRequest) {
         selectedOrganizationId: organizationId,
         ...(dailyTopic !== undefined && { dailyTopic }),
       },
-      {merge: true}
+      { merge: true }
     );
 
-    return NextResponse.json({success: true});
+    return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Automation update failed";
     return jsonError(message, 500);
@@ -578,7 +578,7 @@ export async function handleDisconnectLinkedin(req: NextRequest) {
       linkedinTokenExpiry: admin.firestore.FieldValue.delete(),
     });
 
-    return NextResponse.json({success: true});
+    return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Disconnect failed";
     return jsonError(message, 500);
@@ -594,7 +594,7 @@ export async function runDailyPostAutomation(req: NextRequest) {
     const db = getDb();
     const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({model: "gemini-2.0-flash"});
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const istNow = getIstNowParts();
     const usersSnapshot = await db.collection("users").where("automationEnabled", "==", true).get();
@@ -676,7 +676,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
             lifecycleState: "PUBLISHED",
             specificContent: {
               "com.linkedin.ugc.ShareContent": {
-                shareCommentary: {text: fullContent},
+                shareCommentary: { text: fullContent },
                 shareMediaCategory: "NONE",
               },
             },
@@ -686,7 +686,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
           }),
         });
 
-        const linkedinData = (await linkedinResponse.json()) as {id?: string};
+        const linkedinData = (await linkedinResponse.json()) as { id?: string };
 
         await db.collection("users").doc(userDoc.id).collection("posts").add({
           content: parsed.caption,
@@ -702,7 +702,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
           {
             lastAutoPostedDate: istNow.dateKey,
           },
-          {merge: true}
+          { merge: true }
         );
 
         if (linkedinResponse.ok) {
@@ -748,7 +748,7 @@ export async function runAnalyticsRefresh(req: NextRequest) {
     let failureCount = 0;
 
     for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data() as {linkedinAccessToken?: string};
+      const userData = userDoc.data() as { linkedinAccessToken?: string };
       if (!userData.linkedinAccessToken) continue;
 
       processedUsers += 1;
@@ -765,7 +765,7 @@ export async function runAnalyticsRefresh(req: NextRequest) {
           .get();
 
         for (const postDoc of postsSnapshot.docs) {
-          const postData = postDoc.data() as {linkedinPostUrn?: string};
+          const postData = postDoc.data() as { linkedinPostUrn?: string };
           const postUrn = postData.linkedinPostUrn;
           if (!postUrn) continue;
 
@@ -782,8 +782,8 @@ export async function runAnalyticsRefresh(req: NextRequest) {
           if (!socialResponse.ok) continue;
 
           const socialData = (await socialResponse.json()) as {
-            likesSummary?: {totalLikes?: number};
-            commentsSummary?: {totalFirstLevelComments?: number};
+            likesSummary?: { totalLikes?: number };
+            commentsSummary?: { totalFirstLevelComments?: number };
             shareCount?: number;
           };
 
@@ -806,7 +806,7 @@ export async function runAnalyticsRefresh(req: NextRequest) {
                 engagementRate: 0,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
               },
-              {merge: true}
+              { merge: true }
             );
         }
 
