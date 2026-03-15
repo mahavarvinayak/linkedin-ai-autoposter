@@ -370,6 +370,12 @@ export async function handleGeneratePost(req: NextRequest) {
     
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
+CRITICAL RULES:
+- ONLY include facts, statistics, or claims that are widely known and verifiable. Do NOT invent fake statistics, fabricated quotes, or false claims.
+- If you mention a trend or data point, keep it general (e.g., "studies show...", "industry reports suggest...") rather than citing a specific fake number.
+- Do NOT attribute quotes to real people unless they are very well-known public statements.
+- Focus on genuine insights, opinions, and thought leadership rather than fake news or clickbait.
+
 The post must:
 - Start with a strong, attention-grabbing hook line
 - Provide valuable industry insight or a thought-provoking idea
@@ -481,8 +487,8 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // [STRICT] Using Gemini 3 Flash for Competitor Analysis (Multimodal)
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+    // Using gemini-2.5-flash for text analysis
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let parts: any[] = [];
     if (screenshotData && screenshotData.startsWith("data:")) {
@@ -506,8 +512,9 @@ YOUR TASK:
 1. Extract or analyze the writing style, tone, sentence length, and formatting techniques.
 2. Write a completely fresh, unique, and engaging LinkedIn post about THIS NEW TOPIC: "${topic}".
 3. Use the EXACT SAME tone and structure as the competitor.
-4. Maximum 1500 characters.
-5. Include 5-10 relevant hashtags.
+4. IMPORTANT: Do NOT invent fake facts, statistics, or quotes. Only include verifiable, widely known information. Focus on genuine insights and thought leadership.
+5. Maximum 1500 characters.
+6. Include 5-10 relevant hashtags.
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` });
 
@@ -869,9 +876,11 @@ export async function runDailyPostAutomation(req: NextRequest) {
         // User requested "Gemini 3 Flash" for daily posts
         const prompt = `Generate a highly engaging LinkedIn post about "${randomTopic}".
 
+CRITICAL: Only include facts and claims that are widely known and verifiable. Do NOT invent fake statistics, fabricated quotes, or false claims. Focus on genuine insights and thought leadership.
+
 The post must:
 - Start with a strong hook
-- Provide valuable insight
+- Provide valuable, truthful insight
 - Conversational yet professional tone
 - Maximum 1500 characters
 - Include 5-10 relevant hashtags
