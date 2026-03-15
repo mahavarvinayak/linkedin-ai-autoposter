@@ -74,8 +74,8 @@ function getRedirectUri(req: NextRequest): string {
   const fromEnv = process.env.LINKEDIN_REDIRECT_URI?.trim();
   if (fromEnv) return fromEnv;
 
-  const origin = new URL(req.url).origin;
-  return `${origin}/api/linkedinCallback`;
+  // Use the verified production URL by default to avoid mismatch errors
+  return `https://linkedin-ai-autoposter-phi.vercel.app/api/linkedinCallback`;
 }
 
 function getLinkedinScopes(): string {
@@ -212,6 +212,12 @@ export async function handleLinkedinCallback(req: NextRequest) {
       }),
     });
 
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error("LinkedIn Access Token Error:", errorText);
+      return jsonError(`LinkedIn Token Error: ${tokenResponse.status} - ${errorText}`, 400);
+    }
+
     const tokenData = (await tokenResponse.json()) as {
       access_token?: string;
       expires_in?: number;
@@ -227,6 +233,12 @@ export async function handleLinkedinCallback(req: NextRequest) {
     const profileResponse = await fetch("https://api.linkedin.com/userinfo", {
       headers: {Authorization: `Bearer ${tokenData.access_token}`},
     });
+
+    if (!profileResponse.ok) {
+      const errorText = await profileResponse.text();
+      console.error("LinkedIn Userinfo Error:", errorText);
+      return jsonError(`LinkedIn Userinfo Error: ${profileResponse.status} - ${errorText}`, 400);
+    }
 
     const profile = (await profileResponse.json()) as {
       sub?: string;
@@ -295,8 +307,11 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
+    console.log("Generating AI post for topic:", topic || category);
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = await result.response;
+    const text = response.text();
+    console.log("AI Raw Response received.");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
@@ -352,8 +367,11 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
+    console.log("Analyzing competitor content for topic:", topic);
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = await result.response;
+    const text = response.text();
+    console.log("Competitor Analysis AI response received.");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {

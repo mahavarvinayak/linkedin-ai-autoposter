@@ -27,10 +27,10 @@ class CloudFunctionService {
       Uri.parse('$_baseUrl/linkedinAuthUrl'),
       headers: _headers,
     );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to get LinkedIn auth URL');
-    }
     final data = json.decode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['error'] ?? 'Failed to get LinkedIn auth URL');
+    }
     return data['url'] as String;
   }
 
@@ -41,10 +41,11 @@ class CloudFunctionService {
       headers: _headers,
       body: json.encode({'code': code}),
     );
+    final data = json.decode(response.body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to exchange LinkedIn code');
+      throw Exception(data['error'] ?? 'Failed to exchange LinkedIn code');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    return data as Map<String, dynamic>;
   }
 
   /// Generate an AI post via Cloud Function (uses server-side Gemini API key)
@@ -60,10 +61,11 @@ class CloudFunctionService {
         'category': category ?? 'technology',
       }),
     );
+    final data = json.decode(response.body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to generate AI post');
+      throw Exception(data['error'] ?? 'Failed to generate AI post');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    return data as Map<String, dynamic>;
   }
 
   /// Analyze competitor post via Cloud Function
@@ -79,12 +81,12 @@ class CloudFunctionService {
         'topic': topic,
       }),
     );
-    // Print the error if it fails for easier debugging in adb logcat
+    final data = json.decode(response.body);
     if (response.statusCode != 200) {
-      print('Failed analyzeCompetitor with status ${response.statusCode}');
-      throw Exception('Failed to analyze competitor');
+      print('Failed analyzeCompetitor: ${data['error']}');
+      throw Exception(data['error'] ?? 'Failed to analyze competitor');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    return data as Map<String, dynamic>;
   }
 
   /// Publish a post to LinkedIn via Cloud Function
@@ -102,10 +104,11 @@ class CloudFunctionService {
         'organizationId': organizationId,
       }),
     );
+    final data = json.decode(response.body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to publish to LinkedIn');
+      throw Exception(data['error'] ?? 'Failed to publish to LinkedIn');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    return data as Map<String, dynamic>;
   }
 
   /// Fetch analytics for a post
@@ -114,10 +117,11 @@ class CloudFunctionService {
       Uri.parse('$_baseUrl/fetchAnalytics?postUrn=$postUrn'),
       headers: _headers,
     );
+    final data = json.decode(response.body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to fetch analytics');
+      throw Exception(data['error'] ?? 'Failed to fetch analytics');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
+    return data as Map<String, dynamic>;
   }
 
   /// Update automation settings
@@ -140,7 +144,8 @@ class CloudFunctionService {
       }),
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to update automation settings');
+      final data = json.decode(response.body);
+      throw Exception(data['error'] ?? 'Failed to update automation settings');
     }
   }
 
@@ -151,7 +156,8 @@ class CloudFunctionService {
       headers: _headers,
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to disconnect LinkedIn');
+      final data = json.decode(response.body);
+      throw Exception(data['error'] ?? 'Failed to disconnect LinkedIn');
     }
   }
 }
