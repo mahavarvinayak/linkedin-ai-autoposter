@@ -300,124 +300,93 @@ class _AutomationSection extends StatelessWidget {
 class _PostingTimeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, _) {
-        return Column(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Row(
+              children: [
+                const Icon(Icons.schedule, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Posting Schedule',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withAlpha(40)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Text(
-                    'Posting Times',
-                    style: Theme.of(context).textTheme.titleSmall,
+                  Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: AppColors.accent, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        'Smart Schedule (Pre-optimized)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
-                  if (settings.postingTimes.length < 2)
-                    TextButton.icon(
-                      onPressed: () => _addTime(context, settings),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Time'),
+                  SizedBox(height: 8),
+                  Text(
+                    'We\'ve researched the best posting times for maximum LinkedIn engagement. The server automatically posts twice daily at optimized times based on the day of the week.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.5,
                     ),
+                  ),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.success, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        'No phone or internet needed — runs on server',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.success, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        '2 posts per day at peak engagement hours',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            ...settings.postingTimes.asMap().entries.map((entry) {
-              final index = entry.key;
-              final time = entry.value;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: () => _editTime(context, settings, index, time),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(30),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            index == 0 ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                index == 0 ? 'Slot 1 (Morning)' : 'Slot 2 (Evening)',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                time,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (settings.postingTimes.length > 1)
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, color: AppColors.error),
-                            onPressed: () => settings.removePostingTime(time),
-                          ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
           ],
-        );
-      },
+        ),
+      ),
     );
-  }
-
-  Future<void> _addTime(BuildContext context, SettingsProvider settings) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 18, minute: 0),
-    );
-    if (picked != null) {
-      settings.addPostingTime(
-        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
-      );
-    }
-  }
-
-  Future<void> _editTime(BuildContext context, SettingsProvider settings, int index, String currentTime) async {
-    final parts = currentTime.split(':');
-    final initialTime = TimeOfDay(
-      hour: int.tryParse(parts[0]) ?? 9,
-      minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
-    );
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initialTime,
-    );
-    if (picked != null) {
-      settings.updatePostingTime(
-        index,
-        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
-      );
-    }
   }
 }
 
