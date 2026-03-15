@@ -8,6 +8,7 @@ import {
   handlePublishPost,
   handleUpdateAutomation,
   handleAnalyzeCompetitor,
+  handleGenerateImage,
 } from "@/server/linkflow-backend";
 
 export const runtime = "nodejs";
@@ -35,6 +36,10 @@ async function routeForAction(req: NextRequest, action: string) {
     case "analyzeCompetitor":
       if (req.method !== "POST") return NextResponse.json({error: "Method not allowed"}, {status: 405});
       return handleAnalyzeCompetitor(req);
+
+    case "generateImage":
+      if (req.method !== "POST") return NextResponse.json({error: "Method not allowed"}, {status: 405});
+      return handleGenerateImage(req);
 
     case "publishPost":
       if (req.method !== "POST") return NextResponse.json({error: "Method not allowed"}, {status: 405});
