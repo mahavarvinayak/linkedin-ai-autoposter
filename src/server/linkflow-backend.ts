@@ -31,7 +31,7 @@ async function generateWithFallback(
   genAI: GoogleGenerativeAI, 
   preferredModel: string, 
   prompt: string | any,
-  fallbacks: string[] = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+  fallbacks: string[] = ["gemini-2.5-flash", "gemini-2.0-flash"]
 ) {
   const modelsToTry = [preferredModel, ...fallbacks];
   let lastError: any = null;
@@ -919,6 +919,83 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
             ? `urn:li:organization:${userData.selectedOrganizationId}`
             : `urn:li:person:${userData.linkedinId}`;
 
+        // --- Generate image for daily automation ---
+        let imageAsset: string | null = null;
+        try {
+          // Step 1: Generate image description
+          const imgDescPrompt = `Describe a professional LinkedIn post image for: "${randomTopic}". Modern, clean, high-quality. Respond ONLY with the description.`;
+          const { response: imgDescResp } = await generateWithFallback(genAI, "gemini-2.5-flash", imgDescPrompt);
+          const imgDescription = imgDescResp.text().trim();
+          
+          // Step 2: Get image from Pollinations
+          const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+          const imageResponse = await fetch(imageUrl);
+          
+          if (imageResponse.ok) {
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            
+            // Step 3: Register LinkedIn image upload
+            const registerResp = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${userData.linkedinAccessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                registerUploadRequest: {
+                  recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+                  owner: author,
+                  serviceRelationships: [{
+                    relationshipType: "OWNER",
+                    identifier: "urn:li:userGeneratedContent",
+                  }],
+                },
+              }),
+            });
+            
+            if (registerResp.ok) {
+              const registerData = await registerResp.json() as any;
+              const uploadUrl = registerData.value?.uploadMechanism?.["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]?.uploadUrl;
+              const assetId = registerData.value?.asset;
+              
+              if (uploadUrl && assetId) {
+                // Step 4: Upload image binary
+                const uploadResp = await fetch(uploadUrl, {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${userData.linkedinAccessToken}`,
+                    "Content-Type": "image/png",
+                  },
+                  body: new Uint8Array(imageBuffer),
+                });
+                
+                if (uploadResp.ok) {
+                  imageAsset = assetId;
+                  console.log(`[Auto Image] Successfully uploaded image for user ${userDoc.id}`);
+                }
+              }
+            }
+          }
+        } catch (imgErr) {
+          console.warn(`[Auto Image] Image generation/upload failed for user ${userDoc.id}:`, imgErr);
+          // Continue with text-only post
+        }
+
+        // --- Post to LinkedIn (with or without image) ---
+        const shareMedia = imageAsset
+          ? {
+              shareCommentary: { text: fullContent },
+              shareMediaCategory: "IMAGE" as const,
+              media: [{
+                status: "READY",
+                media: imageAsset,
+              }],
+            }
+          : {
+              shareCommentary: { text: fullContent },
+              shareMediaCategory: "NONE" as const,
+            };
+
         const linkedinResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
           method: "POST",
           headers: {
@@ -930,10 +1007,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
             author,
             lifecycleState: "PUBLISHED",
             specificContent: {
-              "com.linkedin.ugc.ShareContent": {
-                shareCommentary: { text: fullContent },
-                shareMediaCategory: "NONE",
-              },
+              "com.linkedin.ugc.ShareContent": shareMedia,
             },
             visibility: {
               "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
