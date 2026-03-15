@@ -11,10 +11,10 @@ type ScheduledResult = {
 };
 
 const DEFAULT_LINKEDIN_SCOPES = [
-  "r_liteprofile",
-  "r_emailaddress",
+  "openid",
+  "profile",
+  "email",
   "w_member_social",
-  "w_organization_social",
 ].join(" ");
 
 function ensureAdminInitialized() {
@@ -220,18 +220,28 @@ export async function handleLinkedinCallback(req: NextRequest) {
       return jsonError(details, 400);
     }
 
-    const profileResponse = await fetch("https://api.linkedin.com/v2/me", {
+    const profileResponse = await fetch("https://api.linkedin.com/userinfo", {
       headers: {Authorization: `Bearer ${tokenData.access_token}`},
     });
 
-    const profile = (await profileResponse.json()) as {id?: string};
-    if (!profile.id) {
-      return jsonError("Failed to fetch LinkedIn profile", 400);
+    const profile = (await profileResponse.json()) as {
+      sub?: string;
+      name?: string;
+      email?: string;
+      picture?: string;
+    };
+
+    if (!profile.sub) {
+      console.error("LinkedIn userinfo failed:", profile);
+      return jsonError("Failed to fetch LinkedIn profile info", 400);
     }
 
     await db.collection("users").doc(uid).set(
       {
-        linkedinId: profile.id,
+        linkedinId: profile.sub,
+        linkedinName: profile.name,
+        linkedinEmail: profile.email,
+        linkedinProfilePicture: profile.picture,
         linkedinAccessToken: tokenData.access_token,
         linkedinTokenExpiry: Date.now() + (tokenData.expires_in || 0) * 1000,
       },
@@ -248,7 +258,7 @@ export async function handleLinkedinCallback(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({success: true, linkedinId: profile.id});
+    return NextResponse.json({success: true, linkedinId: profile.sub});
   } catch (error) {
     const message = error instanceof Error ? error.message : "LinkedIn callback failed";
     return jsonError(message, 500);
