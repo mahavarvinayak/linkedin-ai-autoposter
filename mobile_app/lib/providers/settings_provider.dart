@@ -7,7 +7,7 @@ class SettingsProvider extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
 
   bool _automationEnabled = false;
-  String _postingTime = '09:00';
+  List<String> _postingTimes = ['09:00'];
   String _targetType = 'personal';
   String? _selectedOrgId;
   String _dailyTopic = '';
@@ -16,7 +16,8 @@ class SettingsProvider extends ChangeNotifier {
   String? _error;
 
   bool get automationEnabled => _automationEnabled;
-  String get postingTime => _postingTime;
+  List<String> get postingTimes => _postingTimes;
+  String get postingTime => _postingTimes.isNotEmpty ? _postingTimes.first : '09:00';
   String get targetType => _targetType;
   String? get selectedOrgId => _selectedOrgId;
   String get dailyTopic => _dailyTopic;
@@ -35,7 +36,7 @@ class SettingsProvider extends ChangeNotifier {
       final appUser = await _firestoreService.getUser(user.uid);
       if (appUser != null) {
         _automationEnabled = appUser.automationEnabled;
-        _postingTime = appUser.postingTime ?? '09:00';
+        _postingTimes = List<String>.from(appUser.postingTimes);
         _targetType = appUser.targetType;
         _dailyTopic = appUser.dailyTopic ?? '';
         _selectedOrgId = appUser.selectedOrganizationId ??
@@ -57,8 +58,29 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   void setPostingTime(String time) {
-    _postingTime = time;
+    _postingTimes = [time];
     notifyListeners();
+  }
+
+  void addPostingTime(String time) {
+    if (!_postingTimes.contains(time)) {
+      _postingTimes.add(time);
+      notifyListeners();
+    }
+  }
+
+  void removePostingTime(String time) {
+    if (_postingTimes.length > 1) {
+      _postingTimes.remove(time);
+      notifyListeners();
+    }
+  }
+
+  void updatePostingTime(int index, String newTime) {
+    if (index >= 0 && index < _postingTimes.length) {
+      _postingTimes[index] = newTime;
+      notifyListeners();
+    }
   }
 
   void setTargetType(String type) {
@@ -88,7 +110,7 @@ class SettingsProvider extends ChangeNotifier {
       // Update Firestore
       await _firestoreService.updateUserSettings(user.uid, {
         'automationEnabled': _automationEnabled,
-        'postingTime': _postingTime,
+        'postingTimes': _postingTimes,
         'targetType': _targetType,
         'dailyTopic': _dailyTopic,
         'selectedOrganizationId': _selectedOrgId,
@@ -102,7 +124,7 @@ class SettingsProvider extends ChangeNotifier {
       final service = CloudFunctionService(token!);
       await service.updateAutomationSettings(
         enabled: _automationEnabled,
-        postingTime: _postingTime,
+        postingTimes: _postingTimes,
         targetType: _targetType,
         organizationId: _selectedOrgId,
         dailyTopic: _dailyTopic,

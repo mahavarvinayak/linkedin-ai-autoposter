@@ -7,6 +7,7 @@ class AppUser {
   final String? selectedOrganizationId;
   final String? aiProvider;
   final String? postingTime;
+  final List<String> postingTimes;
   final bool automationEnabled;
   final String targetType; // 'personal' or 'organization'
   final String? dailyTopic;
@@ -18,6 +19,7 @@ class AppUser {
     this.selectedOrganizationId,
     this.aiProvider = 'gemini',
     this.postingTime = '09:00',
+    this.postingTimes = const ['09:00'],
     this.automationEnabled = false,
     this.targetType = 'personal',
     this.dailyTopic,
@@ -32,6 +34,7 @@ class AppUser {
       selectedOrganizationId: data['selectedOrganizationId'] as String?,
       aiProvider: data['aiProvider'] as String? ?? 'gemini',
       postingTime: data['postingTime'] as String? ?? '09:00',
+      postingTimes: List<String>.from(data['postingTimes'] ?? [data['postingTime'] ?? '09:00']),
       automationEnabled: data['automationEnabled'] as bool? ?? false,
       targetType: data['targetType'] as String? ?? 'personal',
       dailyTopic: data['dailyTopic'] as String?,
@@ -46,6 +49,7 @@ class AppUser {
       'selectedOrganizationId': selectedOrganizationId,
       'aiProvider': aiProvider,
       'postingTime': postingTime,
+      'postingTimes': postingTimes,
       'automationEnabled': automationEnabled,
       'targetType': targetType,
       'dailyTopic': dailyTopic,

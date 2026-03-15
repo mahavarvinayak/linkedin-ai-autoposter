@@ -9,6 +9,9 @@ import {
   handleUpdateAutomation,
   handleAnalyzeCompetitor,
   handleGenerateImage,
+  runDailyPostAutomation,
+  runScheduledPosts,
+  runAnalyticsRefresh,
 } from "@/server/linkflow-backend";
 
 export const runtime = "nodejs";
@@ -56,6 +59,15 @@ async function routeForAction(req: NextRequest, action: string) {
     case "disconnectLinkedIn":
       if (req.method !== "POST") return NextResponse.json({error: "Method not allowed"}, {status: 405});
       return handleDisconnectLinkedin(req);
+
+    case "runDailyPostAutomation":
+      return runDailyPostAutomation(req);
+    
+    case "runScheduledPosts":
+      return runScheduledPosts(req);
+
+    case "runAnalyticsRefresh":
+      return runAnalyticsRefresh(req);
 
     default:
       return NextResponse.json({error: "Endpoint not found"}, {status: 404});

@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/post_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -14,6 +17,8 @@ class CompetitorAnalysisScreen extends StatefulWidget {
 class _CompetitorAnalysisScreenState extends State<CompetitorAnalysisScreen> {
   final _competitorTextController = TextEditingController();
   final _topicController = TextEditingController();
+  File? _selectedScreenshot;
+  final _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -22,18 +27,36 @@ class _CompetitorAnalysisScreenState extends State<CompetitorAnalysisScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedScreenshot = File(pickedFile.path);
+      });
+    }
+  }
+
   Future<void> _analyzeAndGenerate() async {
-    if (_competitorTextController.text.trim().isEmpty || _topicController.text.trim().isEmpty) {
+    if ((_competitorTextController.text.trim().isEmpty && _selectedScreenshot == null) || 
+        _topicController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both competitor content and your topic')),
+        const SnackBar(content: Text('Please enter competitor content/screenshot and your topic')),
       );
       return;
+    }
+
+    String? base64Screenshot;
+    if (_selectedScreenshot != null) {
+      final bytes = await _selectedScreenshot!.readAsBytes();
+      final mimeType = 'image/${_selectedScreenshot!.path.split('.').last}';
+      base64Screenshot = 'data:$mimeType;base64,${base64Encode(bytes)}';
     }
 
     final provider = context.read<PostProvider>();
     await provider.analyzeCompetitor(
       competitorContent: _competitorTextController.text.trim(),
       topic: _topicController.text.trim(),
+      screenshotData: base64Screenshot,
     );
 
     if (provider.error != null && mounted) {
@@ -99,6 +122,49 @@ class _CompetitorAnalysisScreenState extends State<CompetitorAnalysisScreen> {
                         hintText: 'Paste 2-3 viral posts from your competitor here...',
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Center(child: Text('OR', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary))),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _pickImage,
+                        icon: const Icon(Icons.add_a_photo_outlined),
+                        label: Text(_selectedScreenshot == null ? 'Upload Screenshot of Post' : 'Change Screenshot'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                        ),
+                      ),
+                    ),
+                    if (_selectedScreenshot != null) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(
+                          children: [
+                            Image.file(
+                              _selectedScreenshot!,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedScreenshot = null),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

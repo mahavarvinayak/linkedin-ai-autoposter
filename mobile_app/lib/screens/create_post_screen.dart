@@ -258,64 +258,157 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 16),
 
-            // Image Preview (if available)
+            // Live Preview Card
             Consumer<PostProvider>(
               builder: (context, provider, _) {
-                if (provider.generatedImageUrl == null && !provider.isGenerating) {
+                if (_contentController.text.isEmpty && provider.generatedImageUrl == null && !provider.isGenerating) {
                   return const SizedBox.shrink();
                 }
                 
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(
+                        'Live Preview',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Card(
+                      elevation: 4,
+                      shadowColor: Colors.black26,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: AppColors.cardBorder.withAlpha(100)),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'AI Generated Image',
-                              style: Theme.of(context).textTheme.titleSmall,
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: AppColors.surfaceLight,
+                                  child: const Icon(Icons.person, color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'You',
+                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'LinkedIn Post • Public',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.more_horiz, color: AppColors.textSecondary),
+                              ],
                             ),
-                            if (provider.generatedImageUrl != null)
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () => provider.clearGenerated(),
+                            const SizedBox(height: 12),
+                            ValueListenableBuilder(
+                              valueListenable: _contentController,
+                              builder: (context, value, _) {
+                                return Text(
+                                  value.text.isEmpty 
+                                    ? 'Your post content will appear here...'
+                                    : value.text,
+                                  style: const TextStyle(fontSize: 14),
+                                );
+                              }
+                            ),
+                            if (provider.generatedImageUrl != null || provider.isGenerating) ...[
+                              const SizedBox(height: 12),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: provider.isGenerating && provider.generatedImageUrl == null
+                                    ? Container(
+                                        height: 250,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceLight,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: AppColors.cardBorder),
+                                        ),
+                                        child: const Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              CircularProgressIndicator(),
+                                              SizedBox(height: 12),
+                                              Text('Designing your image...', style: TextStyle(color: AppColors.textSecondary)),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    : provider.generatedImageUrl != null
+                                        ? Stack(
+                                            children: [
+                                              Image.network(
+                                                provider.generatedImageUrl!,
+                                                width: double.infinity,
+                                                fit: BoxFit.contain,
+                                                loadingBuilder: (context, child, loadingProgress) {
+                                                  if (loadingProgress == null) return child;
+                                                  return Container(
+                                                    height: 250,
+                                                    width: double.infinity,
+                                                    color: AppColors.surfaceLight,
+                                                    child: const Center(child: CircularProgressIndicator()),
+                                                  );
+                                                },
+                                              ),
+                                              Positioned(
+                                                top: 12,
+                                                right: 12,
+                                                child: GestureDetector(
+                                                  onTap: () => provider.clearGenerated(),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(6),
+                                                    decoration: const BoxDecoration(
+                                                      color: Colors.black54,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(Icons.close, size: 20, color: Colors.white),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : const SizedBox.shrink(),
                               ),
+                            ],
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 8),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _MockAction(icon: Icons.thumb_up_outlined, label: 'Like'),
+                                _MockAction(icon: Icons.comment_outlined, label: 'Comment'),
+                                _MockAction(icon: Icons.share_outlined, label: 'Share'),
+                                _MockAction(icon: Icons.send_outlined, label: 'Send'),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: provider.isGenerating && provider.generatedImageUrl == null
-                              ? Container(
-                                  height: 200,
-                                  width: double.infinity,
-                                  color: AppColors.surfaceLight,
-                                  child: const Center(child: CircularProgressIndicator()),
-                                )
-                              : provider.generatedImageUrl != null 
-                                  ? Image.network(
-                                      provider.generatedImageUrl!,
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(
-                                          height: 200,
-                                          width: double.infinity,
-                                          color: AppColors.surfaceLight,
-                                          child: const Center(child: CircularProgressIndicator()),
-                                        );
-                                      },
-                                    )
-                                  : const SizedBox.shrink(),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 );
               },
             ),
@@ -530,6 +623,31 @@ class _TargetOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MockAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MockAction({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

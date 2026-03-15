@@ -90,6 +90,7 @@ class CloudFunctionService {
   Future<Map<String, dynamic>> analyzeCompetitor({
     required String competitorContent,
     required String topic,
+    String? screenshotData,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/analyzeCompetitor'),
@@ -97,6 +98,7 @@ class CloudFunctionService {
       body: json.encode({
         'competitorContent': competitorContent,
         'topic': topic,
+        if (screenshotData != null) 'screenshotData': screenshotData,
       }),
     );
     final data = json.decode(response.body);
@@ -147,7 +149,7 @@ class CloudFunctionService {
   /// Update automation settings
   Future<void> updateAutomationSettings({
     required bool enabled,
-    required String postingTime,
+    required List<String> postingTimes,
     required String targetType,
     String? organizationId,
     String? dailyTopic,
@@ -157,7 +159,7 @@ class CloudFunctionService {
       headers: _headers,
       body: json.encode({
         'enabled': enabled,
-        'postingTime': postingTime,
+        'postingTimes': postingTimes,
         'targetType': targetType,
         'organizationId': organizationId,
         if (dailyTopic != null && dailyTopic.isNotEmpty) 'dailyTopic': dailyTopic,

@@ -95,6 +95,7 @@ class PostProvider extends ChangeNotifier {
   Future<void> analyzeCompetitor({
     required String competitorContent,
     required String topic,
+    String? screenshotData,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -109,6 +110,7 @@ class PostProvider extends ChangeNotifier {
       final result = await service.analyzeCompetitor(
         competitorContent: competitorContent,
         topic: topic,
+        screenshotData: screenshotData,
       );
 
       _generatedContent = result['caption'] as String?;
