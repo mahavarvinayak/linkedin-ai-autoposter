@@ -394,25 +394,22 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    const prompt = `You are a viral LinkedIn Content Creator known for high-impact, visual-first posts.
-Topic: "${topic || category || "technology"}".
+    const prompt = `You are a world-class LinkedIn Viral Creator (Style: Heet Patel).
+Task: Create a high-impact post about "${topic || category || "technology"}".
 
-POST STYLE (Visual-First):
-- The caption should be SHORT and PUNCHY.
-- Focus on a lethal HOOK and a small amount of context.
-- The image will do the heavy lifting (infographic or meme style).
+CONTENT MODES (Choose the best fit):
+1. THE VIRAL HOOK: Short (2-4 punchy lines). Focus on a "Then vs Now" or "Expectation vs Reality" comparison.
+2. THE AUTHORITY STORY: Long-form (1300-1500 characters). Airy listicle structure with ↳ for sub-points.
 
-STRUCTURE:
-1. HOOK: 1 scroll-stopping sentence.
-2. THE "WHY": 2-3 power-packed sentences.
-3. CALL TO ACTION: A short question or "Check the visual below."
+RULES:
+- NO AI-FLUFF: Zero usage of "Unlock," "Delve," "Transformative," etc.
+- SPACING: Every single sentence MUST be on a new line. Double space between paragraphs.
+- TONE: Professional but mixes in common startup/tech-culture relatability.
+- HUMOR: Use subtle, dry humor or "Hinglish" (Hindi-English mix) words like "Scam," "Jugaad," or "Bhai" if it fits a meme context.
 
 CONSTRAINTS:
-- LENGTH: 300 to 600 characters (STRICT LIMIT).
-- NO AI-FLUFF. No "Unlock," "Delve," etc.
-- 1-2 relevant emojis.
-
-Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
+- Character Limit: 1300-1500 strictly.
+- Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
     const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt, undefined, 2048);
     console.log(`[AI Success] Used post model: ${postModel}`);
@@ -535,23 +532,22 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate a VIRAL VISUAL image description
-    const descPrompt = `You are a world-class social media visual designer.
-Generate a prompt for an AI to create a VIRAL LinkedIn visual about "${topic}".
+    // Step 1: Generate a HEET-STYLE VIRAL VISUAL
+    const descPrompt = `You are a professional LinkedIn visual designer (Style: Heet Patel).
+Generate an ultra-crisp AI image prompt for "${topic}".
 
-STLYE OPTIONS (Choose one that fits the topic best):
-1. UI MOCKUP: A clean screenshot style (like ChatGPT or WhatsApp) with a funny or profound interaction.
-2. COMPARISON: A "2024 vs 2025" style chart with clean icons and minimalist layout.
-3. CHARACTER STORY: A high-quality 3D illustration of a relatable business situation (masterpiece quality).
-4. QUOTE CARD: Bold, giant typography on a premium sleek gradient background.
+VISUAL TEMPLATES (Pick one):
+- TWEET STYLE: A clean, dark-mode/white-mode screenshot of a tweet with a bold insight.
+- COMPARISON CHART: A "2024 vs 2026" or "Good vs Great" comparison card with clean icons.
+- UI SNIPPET: A high-end mock of a ChatGPT or WhatsApp chat bubble with a relatable message.
+- MINIMALIST ILLUSTRATION: A square 3D character (Nano Banana style) representing a tech-life struggle.
 
-QUALITY RULES:
-- Style: Minimalist, "Nano Banana" design aesthetic, high contrast.
-- Visuals: Sharp text rendering, cinematic lighting, masterpiece, 8k.
-- Colors: Sleek corporate (Deep Blue, Dark Grey, Vibrant White/Green).
+DESIGN QUALITY:
+- Layout: Square 1:1, minimalist SaaS branding.
+- Text: Crystal clear, bold typography, no gibberish.
+- Lighting: Professional studio lighting, 8k, Flux model aesthetic.
 
-AVOID: Clutter, generic AI faces, messy backgrounds.
-Respond only with 1-2 powerful sentences describing the masterpiece.`;
+Respond only with 1-2 powerful descriptive sentences.`;
 
     const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 200);
     console.log(`[AI Image] Description generated with: ${descModel}`);
@@ -985,12 +981,12 @@ export async function runDailyPostAutomation(req: NextRequest) {
         const userDailyTopic = userData.dailyTopic?.trim();
         const randomTopic = userDailyTopic || topics[Math.floor(Math.random() * topics.length)];
 
-        // Specimen Style: Short, Viral, Visual-Heavy
-        const prompt = `You are a viral LinkedIn creator. Write a short support caption for a post about "${randomTopic}".
-- Hook: Scroll-stopping.
-- Body: 2-3 short, punchy lines.
-- No AI fluff.
-- Length: Max 500 characters.
+        // Automation Style: Airy, Authoritative, and Viral (Style: Heet Patel)
+        const prompt = `You are a viral LinkedIn creator. Write an airy, listicle-style post about "${randomTopic}".
+- Hook: Comparison/Contrarian.
+- Structure: Short sentences, ↳ for points.
+- TONE: Pro-tech + Relatable humor.
+- Length: Max 1300-1500 chars (Strict for UI).
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
         const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
