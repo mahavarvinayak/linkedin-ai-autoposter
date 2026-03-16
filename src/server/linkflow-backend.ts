@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
 type JsonMap = Record<string, unknown>;
@@ -28,10 +28,10 @@ const DEFAULT_LINKEDIN_SCOPES = [
 ].join(" ");
 
 async function generateWithFallback(
-  genAI: GoogleGenerativeAI, 
+  groq: Groq, 
   preferredModel: string, 
-  prompt: string | any,
-  fallbacks: string[] = ["gemini-2.5-flash", "gemini-2.0-flash"]
+  prompt: string | any[],
+  fallbacks: string[] = ["llama-3.1-8b-instant", "mixtral-8x7b-32768"]
 ) {
   const modelsToTry = [preferredModel, ...fallbacks];
   let lastError: any = null;
@@ -39,17 +39,18 @@ async function generateWithFallback(
   for (const modelName of modelsToTry) {
     try {
       console.log(`[AI] Attempting generation with model: ${modelName}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return { response, modelUsed: modelName };
+      const response = await groq.chat.completions.create({
+        messages: [{ role: "user", content: prompt as any }],
+        model: modelName,
+      });
+      return { response: response.choices[0]?.message?.content || "", modelUsed: modelName };
     } catch (err) {
       console.warn(`[AI Warning] Model ${modelName} failed:`, err);
       lastError = err;
       continue;
     }
   }
-  throw lastError || new Error("All models failed");
+  throw lastError || new Error("All Groq models failed");
 }
 
 /** Public diagnostic endpoint — no auth required */
@@ -61,24 +62,26 @@ export async function handlePingAI(req: NextRequest) {
   };
 
   // 1) Check env vars
-  const geminiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GENKIT_API_KEY?.trim();
-  diagnostics.envCheck.GEMINI_API_KEY = geminiKey ? `SET (${geminiKey.slice(0, 6)}...${geminiKey.slice(-4)})` : "MISSING";
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  diagnostics.envCheck.GROQ_API_KEY = groqKey ? `SET (${groqKey.slice(0, 6)}...${groqKey.slice(-4)})` : "MISSING";
   diagnostics.envCheck.FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? "SET" : "MISSING";
   diagnostics.envCheck.LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID ? "SET" : "MISSING";
 
-  if (!geminiKey) {
-    return NextResponse.json({ ...diagnostics, error: "GEMINI_API_KEY is not set on Vercel!" }, { status: 500 });
+  if (!groqKey) {
+    return NextResponse.json({ ...diagnostics, error: "GROQ_API_KEY is not set on Vercel!" }, { status: 500 });
   }
 
   // 2) Try each model with a tiny prompt
-  const genAI = new GoogleGenerativeAI(geminiKey);
-  const testModels = ["gemini-3-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  const groq = new Groq({ apiKey: groqKey });
+  const testModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
 
   for (const modelName of testModels) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent("Say hello in one word.");
-      const text = result.response.text();
+      const result = await groq.chat.completions.create({
+        messages: [{ role: "user", content: "Say hello in one word." }],
+        model: modelName,
+      });
+      const text = result.choices[0]?.message?.content || "";
       diagnostics.modelTests.push({ model: modelName, status: "OK", response: text.slice(0, 50) });
       break; // Stop at first success
     } catch (err: any) {
@@ -360,13 +363,13 @@ export async function handleLinkedinCallback(req: NextRequest) {
 export async function handleGeneratePost(req: NextRequest) {
   try {
     await verifyAuth(req);
-    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
+    const groqApiKey = getRequiredEnv("GROQ_API_KEY");
     const body = await readJsonBody(req);
 
     const topic = (body.topic as string | undefined)?.trim();
     const category = (body.category as string | undefined)?.trim();
 
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const groq = new Groq({ apiKey: groqApiKey });
     
     const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
 
@@ -388,9 +391,8 @@ Respond ONLY with valid JSON with two keys:
 - "caption": the post text (string)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
-    const { response: postResponse, modelUsed: postModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
+    const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
     console.log(`[AI Success] Used post model: ${postModel}`);
-    const text = postResponse.text();
     console.log("[AI] Raw Response length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
@@ -417,7 +419,7 @@ Respond ONLY with valid JSON with two keys:
 export async function handleGenerateImage(req: NextRequest) {
   try {
     const decodedToken = await verifyAuth(req);
-    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
+    const groqApiKey = getRequiredEnv("GROQ_API_KEY");
     const body = await readJsonBody(req);
 
     const topic = (body.topic as string | undefined)?.trim();
@@ -425,42 +427,18 @@ export async function handleGenerateImage(req: NextRequest) {
       return jsonError("Missing topic for image generation", 400);
     }
 
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate image description using text model (this works fine)
+    // Step 1: Generate image description using text model
     const descPrompt = `Generate a highly detailed, professional, and visually stunning image description for a LinkedIn post.
 The image should represent the following topic: "${topic}".
 The style should be modern, clean, and high-quality. Respond ONLY with the description.`;
 
-    const { response: descResponse, modelUsed: descModel } = await generateWithFallback(genAI, "gemini-2.5-flash", descPrompt);
+    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt);
     console.log(`[AI Image] Description generated with: ${descModel}`);
-    const imageDescription = descResponse.text().trim();
+    const imageDescription = text.trim();
 
-    // Step 2: Try native Gemini image generation (may not be available)
-    try {
-      console.log("[AI Image] Attempting native Gemini image generation...");
-      const imageModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-      const imageResult = await imageModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: `Generate a LinkedIn-ready professional image for: ${imageDescription}` }] }],
-        generationConfig: {
-          // @ts-ignore
-          responseModalities: ["IMAGE"],
-        }
-      } as any);
-      
-      const imageResponse = await imageResult.response;
-      const imagePart = imageResponse.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-      
-      if (imagePart?.inlineData) {
-        console.log("[AI Image] Native generation successful!");
-        const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-        return NextResponse.json({ success: true, imageUrl });
-      }
-    } catch (nativeErr) {
-      console.warn("[AI Image] Native generation not available:", nativeErr);
-    }
-
-    // Step 3: Fallback to Pollinations (always works)
+    // Step 2: Use Pollinations Flux for image generation
     console.log("[AI Image] Using Pollinations Flux fallback for image generation");
     const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imageDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
     return NextResponse.json({ success: true, imageUrl });
@@ -486,18 +464,14 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
       return jsonError("Missing competitor content/screenshot or topic", 400);
     }
 
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    // Using gemini-2.5-flash for text analysis
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const groq = new Groq({ apiKey: groqApiKey });
 
-    let parts: any[] = [];
+    let contentArr: any[] = [];
     if (screenshotData && screenshotData.startsWith("data:")) {
-      const base64Data = screenshotData.split(",")[1];
-      const mimeType = screenshotData.split(",")[0].split(":")[1].split(";")[0];
-      parts.push({
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType
+      contentArr.push({
+        type: "image_url",
+        image_url: {
+          url: screenshotData,
         }
       });
     }
@@ -506,7 +480,7 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
       ? `Analyze the following competitor posts: "${competitorContent}"`
       : `Analyze the writing style, tone, and formatting of the LinkedIn post in this screenshot.`;
 
-    parts.push({ text: `${analysisPrompt}
+    contentArr.push({ type: "text", text: `${analysisPrompt}
     
 YOUR TASK:
 1. Extract or analyze the writing style, tone, sentence length, and formatting techniques.
@@ -519,9 +493,9 @@ YOUR TASK:
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` });
 
     console.log("[AI Spy] Analyzing competitor multimodal content for topic:", topic);
-    const { response: spyResponse, modelUsed: spyModel } = await generateWithFallback(genAI, "gemini-2.5-flash", parts);
+    const preferredModel = screenshotData ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile";
+    const { response: text, modelUsed: spyModel } = await generateWithFallback(groq, preferredModel, contentArr, ["llama-3.1-8b-instant"]);
     console.log(`[AI Spy Success] Used model: ${spyModel}`);
-    const text = spyResponse.text();
     console.log("[AI Spy] Response received, length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
@@ -827,8 +801,8 @@ export async function runDailyPostAutomation(req: NextRequest) {
 
   try {
     const db = getDb();
-    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const groqApiKey = getRequiredEnv("GROQ_API_KEY");
+    const groq = new Groq({ apiKey: groqApiKey });
 
     const istNow = getIstNowParts();
     const usersSnapshot = await db.collection("users").where("automationEnabled", "==", true).get();
@@ -898,9 +872,8 @@ The post must:
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
-        const { response: autoResponse, modelUsed: autoModel } = await generateWithFallback(genAI, "gemini-2.5-flash", prompt);
+        const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
         console.log(`[AI Auto Success] User ${userDoc.id} used model: ${autoModel}`);
-        const text = autoResponse.text();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
           failureCount += 1;
@@ -924,8 +897,8 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
         try {
           // Step 1: Generate image description
           const imgDescPrompt = `Describe a professional LinkedIn post image for: "${randomTopic}". Modern, clean, high-quality. Respond ONLY with the description.`;
-          const { response: imgDescResp } = await generateWithFallback(genAI, "gemini-2.5-flash", imgDescPrompt);
-          const imgDescription = imgDescResp.text().trim();
+          const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
+          const imgDescription = imgDescResp.trim();
           
           // Step 2: Get image from Pollinations
           const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
