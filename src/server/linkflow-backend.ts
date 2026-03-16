@@ -394,22 +394,25 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
     
-    const prompt = `You are a top LinkedIn influencer ghostwriter. Write a viral LinkedIn post about "${topic || category || "technology"}".
+    const prompt = `You are a high-end LinkedIn social media manager for top tech influencers. 
+Generate a VIRAL, high-quality LinkedIn post about "${topic || category || "technology"}".
 
-STYLE:
-- Write like a real person sharing a genuine insight, NOT like a generic AI
-- Use short, punchy sentences
-- Add line breaks between thoughts for readability
-- Start with an unexpected hook that makes people stop scrolling
-- Share a real insight, trend, or perspective
-- End with a thought-provoking question
+TONE:
+- Use a "human" voice. Avoid "AI-isms" like "delve into," "unlock," "revolutionize."
+- Be bold, insightful, and slightly opinionated.
+- Write like a practitioner, not a marketer.
 
-LENGTH: 600-1200 characters total (caption + hashtags). Do NOT exceed 1200 characters.
+STRUCTURE:
+- A strong "hook" as the first line (must stop the scroll).
+- Short paragraphs (1-3 sentences max each).
+- Use bullet points or numbered lists if it adds clarity.
+- Include a "pro-tip" or a counter-intuitive insight.
+- End with an engaging question to spark comments.
 
-RULES:
-- No fake statistics or fabricated quotes
-- No generic filler like "In today's fast-paced world..."
-- Be specific and opinionated
+CONSTRAINTS:
+- 800 to 1400 characters total.
+- Use 5-8 relevant, trending hashtags.
+- DO NOT invent facts. Use industry-standard wisdom.
 
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
@@ -863,22 +866,26 @@ export async function handleUpdateAutomation(req: NextRequest) {
     const targetType = String(body.targetType || "personal");
     const organizationId = (body.organizationId as string | undefined) || null;
     const dailyTopic = (body.dailyTopic as string | undefined) ?? undefined;
+    console.log(`[Automation] Saving settings for user ${decodedToken.uid}:`, { enabled, postingTimes, targetType, organizationId, dailyTopic });
 
     await db.collection("users").doc(decodedToken.uid).set(
       {
         automationEnabled: enabled,
-        postingTimes, // Support multiple times
+        postingTimes, 
         targetType,
         selectedOrganizationId: organizationId,
         ...(dailyTopic !== undefined && { dailyTopic }),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
 
+    console.log("[Automation] Settings saved successfully.");
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("[Automation Error] Failed to update settings:", error);
     const message = error instanceof Error ? error.message : "Automation update failed";
-    return jsonError(message, 500);
+    return jsonError(`${message} (check server logs for details)`, 500);
   }
 }
 

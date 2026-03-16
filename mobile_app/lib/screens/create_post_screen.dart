@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../providers/post_provider.dart';
 import '../providers/auth_provider.dart';
@@ -358,60 +359,57 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                     : provider.generatedImageUrl != null
                                         ? Stack(
                                             children: [
-                                              Image.network(
-                                                provider.generatedImageUrl!,
-                                                width: double.infinity,
-                                                fit: BoxFit.contain,
-                                                loadingBuilder: (context, child, loadingProgress) {
-                                                  if (loadingProgress == null) return child;
-                                                  final progress = loadingProgress.expectedTotalBytes != null
-                                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                                      : null;
-                                                  return Container(
-                                                    height: 250,
-                                                    width: double.infinity,
-                                                    color: AppColors.surfaceLight,
-                                                    child: Center(
-                                                      child: Column(
-                                                        mainAxisAlignment: MainAxisAlignment.center,
-                                                        children: [
-                                                          CircularProgressIndicator(value: progress),
-                                                          const SizedBox(height: 8),
-                                                          const Text('Loading image...', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                                errorBuilder: (context, error, stackTrace) {
-                                                  print('[Image Error] Failed to load: $error');
-                                                  return Container(
-                                                    height: 250,
-                                                    width: double.infinity,
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.surfaceLight,
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      border: Border.all(color: AppColors.cardBorder),
-                                                    ),
-                                                    child: Center(
-                                                      child: Column(
-                                                        mainAxisAlignment: MainAxisAlignment.center,
-                                                        children: [
-                                                          const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textSecondary),
-                                                          const SizedBox(height: 8),
-                                                          const Text('Image failed to load', style: TextStyle(color: AppColors.textSecondary)),
-                                                          const SizedBox(height: 8),
-                                                          TextButton.icon(
-                                                            onPressed: () => _generateImage(),
-                                                            icon: const Icon(Icons.refresh, size: 16),
-                                                            label: const Text('Retry'),
+                                              provider.generatedImageUrl!.startsWith('data:image')
+                                                  ? Image.memory(
+                                                      base64Decode(provider.generatedImageUrl!.split(',').last),
+                                                      width: double.infinity,
+                                                      fit: BoxFit.contain,
+                                                    )
+                                                  : Image.network(
+                                                      provider.generatedImageUrl!,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.contain,
+                                                      loadingBuilder: (context, child, loadingProgress) {
+                                                        if (loadingProgress == null) return child;
+                                                        final progress = loadingProgress.expectedTotalBytes != null
+                                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                            : null;
+                                                        return Container(
+                                                          height: 250,
+                                                          width: double.infinity,
+                                                          color: AppColors.surfaceLight,
+                                                          child: Center(
+                                                            child: Column(
+                                                              mainAxisAlignment: MainAxisAlignment.center,
+                                                              children: [
+                                                                CircularProgressIndicator(value: progress),
+                                                                const SizedBox(height: 8),
+                                                                const Text('Loading image...',
+                                                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                                              ],
+                                                            ),
                                                           ),
-                                                        ],
-                                                      ),
+                                                        );
+                                                      },
+                                                      errorBuilder: (context, error, stackTrace) {
+                                                        return Container(
+                                                          height: 250,
+                                                          width: double.infinity,
+                                                          color: AppColors.surfaceLight,
+                                                          child: const Center(
+                                                            child: Column(
+                                                              mainAxisAlignment: MainAxisAlignment.center,
+                                                              children: [
+                                                                Icon(Icons.broken_image, color: Colors.red, size: 40),
+                                                                SizedBox(height: 12),
+                                                                Text('Image failed to load',
+                                                                    style: TextStyle(color: AppColors.textSecondary)),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
                                                     ),
-                                                  );
-                                                },
-                                              ),
                                               Positioned(
                                                 top: 12,
                                                 right: 12,
