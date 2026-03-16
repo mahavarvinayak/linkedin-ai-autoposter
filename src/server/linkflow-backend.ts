@@ -392,7 +392,7 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
     
-    const prompt = `As an expert LinkedIn content creator, generate a highly engaging LinkedIn post about "${topic || category || "technology"}".
+    const prompt = `As an expert LinkedIn content creator, generate a highly engaging and DETAILED LinkedIn post about "${topic || category || "technology"}".
 
 CRITICAL RULES:
 - ONLY include facts, statistics, or claims that are widely known and verifiable. Do NOT invent fake statistics, fabricated quotes, or false claims.
@@ -400,16 +400,19 @@ CRITICAL RULES:
 - Do NOT attribute quotes to real people unless they are very well-known public statements.
 - Focus on genuine insights, opinions, and thought leadership rather than fake news or clickbait.
 
-The post must:
+The post MUST:
+- Be between 800 and 1500 characters long (THIS IS MANDATORY — short posts of 2-3 lines are NOT acceptable)
 - Start with a strong, attention-grabbing hook line
+- Have at least 5-7 paragraphs separated by blank lines
+- Include a personal story, analogy, or real-world example
 - Provide valuable industry insight or a thought-provoking idea
 - Maintain a conversational yet professional tone
 - Be optimized for LinkedIn formatting (short paragraphs, line breaks)
-- Have a maximum caption length of 1500 characters
+- End with a question or call-to-action to drive engagement
 - Include 5-10 highly relevant hashtags
 
 Respond ONLY with valid JSON with two keys:
-- "caption": the post text (string)
+- "caption": the post text (string, minimum 800 characters)
 - "hashtags": array of hashtag strings (each starting with #)`;
 
     const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
@@ -450,7 +453,7 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
   if (accountId && cfToken) {
     try {
       console.log("[AI Image] Attempting Cloudflare Workers AI...");
-      const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-lightning`;
+      const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`;
       const cfResp = await fetch(cfUrl, {
         method: "POST",
         headers: {
@@ -483,7 +486,7 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
   if (hfToken) {
     try {
       console.log("[AI Image] Attempting Hugging Face Inference API...");
-      const hfUrl = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+      const hfUrl = "https://router.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
       const hfResp = await fetch(hfUrl, {
         method: "POST",
         headers: {
