@@ -394,27 +394,27 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    const prompt = `You are an expert LinkedIn Growth Strategist and viral content writer.
-Your task is to write a LinkedIn post about "${topic || category || "technology"}" that maximizes reach and credibility.
+    const prompt = `You are a world-class LinkedIn Growth Strategist and Viral Ghostwriter.
+Task: Write a deep-dive, high-authority LinkedIn post about "${topic || category || "technology"}".
 
-STRUCTURE:
-1. HOOK (First line): Short, curiosity-driven, 1 sentence only. Scroll-stopping.
-2. CONTEXT: Explain the insight, story, or lesson. Use short sentences.
-3. VALUE: Provide actionable insights or practical lessons. High "learned something" factor.
-4. ENGAGEMENT TRIGGER: End with a deep question to invite opinions.
+TONE AND STYLE:
+- Write like a professional practitioner with 15+ years of experience.
+- NO AI-GENERIC FLUFF: Strictly avoid words like "unlock," "delve," "dynamic," "transformative," "embark," or "revolutionize."
+- Bold, contrarian, and high-energy.
 
-WRITING STYLE:
-- Conversational but professional.
-- Short paragraphs (Max 2 sentences per paragraph).
-- Use spacing to improve readability.
-- NO AI-generic fluff (no "delve," "unlock," etc.).
+STRUCTURE (MANDATORY):
+1. THE HOOK: A single, lethal sentence that stops the scroll. 
+2. THE CONTEXT: 2-3 short, punchy paragraphs explaining the "why" now.
+3. THE MEAT: 5-8 bullet points of high-density, actionable insights or counter-intuitive "secrets."
+4. THE TAKEAWAY: A summary of the core lesson.
+5. THE ENGAGEMENT BOMB: A specific, deep question to trigger massive comments.
 
 CONSTRAINTS:
-- 1200-1500 characters total.
-- Include 5-8 natural keywords related to AI, automation, startup growth, or the topic.
-- Use 1-2 subtle emojis.
+- LENGTH: 1800 to 2600 characters (MUST BE LONG AND DETAILED).
+- EMOJIS: Maximum 2-3 subtle, relevant ones.
+- KEYWORDS: AI, automation, startup growth, digital efficiency.
 
-Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
+Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
     const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt, undefined, 2048);
     console.log(`[AI Success] Used post model: ${postModel}`);
@@ -450,10 +450,41 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
 
   const errors: string[] = [];
 
-  // Try Cloudflare first
+  // Try Hugging Face (FLUX) first - MUCH higher quality for design/text
+  if (hfToken) {
+    try {
+      console.log("[AI Image] Attempting Hugging Face Inference API (FLUX.1-schnell)...");
+      const hfUrl = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+      const hfResp = await fetch(hfUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ inputs: prompt })
+      });
+      if (!hfResp.ok) {
+        const errorText = await hfResp.text();
+        throw new Error(`HuggingFace HTTP ${hfResp.status}: ${errorText}`);
+      }
+
+      const contentType = hfResp.headers.get("content-type") || "image/jpeg";
+      const buffer = await hfResp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
+      console.log("[AI Image] Hugging Face success!");
+      return `data:${mime};base64,${base64}`;
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn("[AI Image] Hugging Face failed:", msg);
+      errors.push(`HuggingFace: ${msg}`);
+    }
+  }
+
+  // Fallback to Cloudflare
   if (accountId && cfToken) {
     try {
-      console.log("[AI Image] Attempting Cloudflare Workers AI...");
+      console.log("[AI Image] Attempting Cloudflare Workers AI (SDXL)...");
       const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`;
       const cfResp = await fetch(cfUrl, {
         method: "POST",
@@ -479,44 +510,9 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
       console.warn("[AI Image] Cloudflare failed:", msg);
       errors.push(`Cloudflare: ${msg}`);
     }
-  } else {
-    errors.push("Cloudflare: missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN");
   }
 
-  // Fallback to Hugging Face
-  if (hfToken) {
-    try {
-      console.log("[AI Image] Attempting Hugging Face Inference API...");
-      const hfUrl = "https://router.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
-      const hfResp = await fetch(hfUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${hfToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ inputs: prompt })
-      });
-      if (!hfResp.ok) {
-        const errorText = await hfResp.text();
-        throw new Error(`HuggingFace HTTP ${hfResp.status}: ${errorText}`);
-      }
-
-      const contentType = hfResp.headers.get("content-type") || "image/jpeg";
-      const buffer = await hfResp.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString("base64");
-      const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
-      console.log("[AI Image] Hugging Face success!");
-      return `data:${mime};base64,${base64}`;
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      console.warn("[AI Image] Hugging Face failed:", msg);
-      errors.push(`HuggingFace: ${msg}`);
-    }
-  } else {
-    errors.push("HuggingFace: missing HF_API_KEY");
-  }
-
-  // Final fallback: Pollinations AI (free, no API key, returns URL directly)
+  // Final fallback: Pollinations AI
   try {
     console.log("[AI Image] Using Pollinations AI as final fallback...");
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
@@ -543,18 +539,17 @@ export async function handleGenerateImage(req: NextRequest) {
 
     // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
     const descPrompt = `You are a professional LinkedIn social media graphic designer.
-Write a detailed prompt for an AI image generator to create a graphic about "${topic}".
+Generate a prompt for an AI to create a high-end marketing graphic about "${topic}".
 
-IMAGE STYLE REQUIREMENTS:
-- Clean, minimal, corporate LinkedIn branding aesthetics.
-- High contrast, modern flat design icons or minimalistic vector illustrations.
-- Professional business colors (blue, white, black, subtle gradients).
-- Balanced layout with strong visual hierarchy.
-- TOP: large bold headline text. BOTTOM: subtle supporting insight.
-- 1:1 Square format, sleek tech company branding style.
+DESIGN PRINCIPLES:
+- Style: Minimalist SaaS branding, clean vectors, high-quality glossmorphism.
+- Atmosphere: Professional, credible, futuristic tech board-room or sleek office workspace.
+- Visuals: Bold, readable typography (if used), but focus on stunning abstract 3D elements, charts, or clean professional icons.
+- Colors: Deep blues, blacks, crisp whites, and premium gradients.
+- Quality: 8k resolution, cinematic lighting, masterpiece, trending on Behance.
 
-AVOID: Blurry text, excessive decoration, random backgrounds, distorted artifacts.
-Respond only with 1-2 powerful, descriptive sentences for a masterpiece image generation.`;
+AVOID: Blurry faces, distorted text, messy backgrounds, "trashy" AI artifacts.
+Respond only with 1-2 powerful sentences describing the masterpiece.`;
 
     const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 200);
     console.log(`[AI Image] Description generated with: ${descModel}`);
@@ -989,21 +984,21 @@ export async function runDailyPostAutomation(req: NextRequest) {
         const randomTopic = userDailyTopic || topics[Math.floor(Math.random() * topics.length)];
 
         // Elite Growth Strategist prompt for daily automation
-        const prompt = `You are an expert LinkedIn Growth Strategist and viral content writer.
-Generate a LinkedIn post about "${randomTopic}" that maximizes reach and credibility.
+        const prompt = `You are a world-class LinkedIn Growth Strategist and Viral Ghostwriter.
+Task: Write a deep-dive, high-authority LinkedIn post about "${randomTopic}".
+
+TONE AND STYLE:
+- Write like a top 0.1% practitioner. Bold, insightful, and contrarian.
+- NO AI-GENERIC FLUFF: Strictly avoid words like "unlock," "delve," "dynamic," "transformative," "embark," or "revolutionize."
 
 STRUCTURE:
-1. HOOK: 1 scroll-stopping sentence.
-2. CONTEXT: Insight/lesson using short sentences.
-3. VALUE: Actionable lessons. High "learned something" factor.
-4. ENGAGEMENT TRIGGER: Deep question at the end.
-
-WRITING STYLE:
-- Short paragraphs (Max 2 sentences per paragraph).
-- NO AI fluff. Conversational but professional.
+1. THE HOOK: A lethal first sentence.
+2. THE CONTEXT: 2-3 short, punchy paragraphs.
+3. THE MEAT: 5-8 actionable bullet points.
+4. THE ENGAGEMENT TRIGGER: A specific deep question.
 
 CONSTRAINTS:
-- 1200-1500 characters. 1-2 subtle emojis.
+- 1800 to 2600 characters total (MANDATORY DEPTH).
 - Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
         const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
@@ -1031,9 +1026,10 @@ CONSTRAINTS:
         try {
           // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
           const imgDescPrompt = `You are a professional LinkedIn social media graphic designer.
-Write an ultra-premium image description for an AI generator about "${randomTopic}".
-- Style: Corporate LinkedIn branding, modern flat design icons, clean vector graphics.
-- Layout: Bold headline text, minimalistic tech atmosphere.
+Generate a prompt for an AI image generator to create a high-end marketing graphic about "${randomTopic}".
+- Style: Minimalist SaaS branding, clean 3D vectors, premium lighting.
+- Focus: Aesthetic excellence and professional atmosphere.
+- AVOID: Distorted text or messy details.
 Respond only with 1-2 powerful sentences.`;
           const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
           const imgDescription = imgDescResp.trim();
