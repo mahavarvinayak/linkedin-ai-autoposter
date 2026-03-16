@@ -22,7 +22,7 @@ class FirestoreService {
   }
 
   Future<void> updateUserSettings(String userId, Map<String, dynamic> data) async {
-    await _db.collection('users').doc(userId).update(data);
+    await _db.collection('users').doc(userId).set(data, SetOptions(merge: true));
   }
 
   Stream<AppUser?> userStream(String userId) {

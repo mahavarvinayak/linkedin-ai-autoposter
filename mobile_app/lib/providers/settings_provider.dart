@@ -130,7 +130,7 @@ class SettingsProvider extends ChangeNotifier {
         dailyTopic: _dailyTopic,
       );
     } catch (e) {
-      _error = 'Failed to save settings';
+      _error = 'Failed to save: $e';
     }
 
     _isSaving = false;

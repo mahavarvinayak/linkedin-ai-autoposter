@@ -395,24 +395,24 @@ export async function handleGeneratePost(req: NextRequest) {
     const groq = new Groq({ apiKey: groqApiKey });
     
     const prompt = `You are a high-end LinkedIn social media manager for top tech influencers. 
-Generate a VIRAL, high-quality LinkedIn post about "${topic || category || "technology"}".
+Generate a VIRAL, high-authority LinkedIn post about "${topic || category || "technology"}".
 
 TONE:
-- Use a "human" voice. Avoid "AI-isms" like "delve into," "unlock," "revolutionize."
+- Write like a top 1% practitioner, NOT a marketer.
 - Be bold, insightful, and slightly opinionated.
-- Write like a practitioner, not a marketer.
+- Avoid AI-generic words: "delve into," "embark," "unlock," "revolutionize."
 
 STRUCTURE:
-- A strong "hook" as the first line (must stop the scroll).
-- Short paragraphs (1-3 sentences max each).
-- Use bullet points or numbered lists if it adds clarity.
-- Include a "pro-tip" or a counter-intuitive insight.
-- End with an engaging question to spark comments.
+- A strong "hook" as the first line that stops the scroll.
+- 4-6 paragraphs (STRICTLY) separated by blank lines.
+- Use bullet points for high-density insights.
+- Share a real-world perspective or "pro-tip" that isn't common knowledge.
+- End with a thought-provoking question to spark meaningful engagement.
 
 CONSTRAINTS:
-- 800 to 1400 characters total.
+- 1000 to 1400 characters total.
 - Use 5-8 relevant, trending hashtags.
-- DO NOT invent facts. Use industry-standard wisdom.
+- NO fake statistics.
 
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
@@ -541,10 +541,14 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate a SHORT image description using text model
-    const descPrompt = `Write a 1-2 sentence image description for a LinkedIn post about "${topic}". Professional, modern style. ONLY the description, nothing else.`;
+    // Step 1: Generate a HIGHLY CONTEXTUAL image description
+    const descPrompt = `Write a cinematic, high-quality image description for a LinkedIn post about "${topic}". 
+- If the topic is technical (AI, coding), describe data visualizations, neural networks, or futuristic tech labs.
+- If the topic is business/finance, describe professional boardrooms, glowing stock charts, or professional urban architecture with financial icons.
+- Ensure the lighting is dramatic (global illumination, volumetric light) and the style is modern/slick.
+Respond only with 1-2 powerful sentences.`;
 
-    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 100);
+    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 150);
     console.log(`[AI Image] Description generated with: ${descModel}`);
     const imageDescription = text.trim();
 
@@ -885,7 +889,8 @@ export async function handleUpdateAutomation(req: NextRequest) {
   } catch (error) {
     console.error("[Automation Error] Failed to update settings:", error);
     const message = error instanceof Error ? error.message : "Automation update failed";
-    return jsonError(`${message} (check server logs for details)`, 500);
+    // Including specific error details to help the client-side debug
+    return jsonError(`Failed: ${message}`, 500);
   }
 }
 
