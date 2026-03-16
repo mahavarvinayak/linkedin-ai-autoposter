@@ -394,23 +394,26 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
     
-    const prompt = `As an expert LinkedIn content creator, generate an engaging LinkedIn post about "${topic || category || "technology"}".
+    const prompt = `You are a top LinkedIn influencer ghostwriter. Write a viral LinkedIn post about "${topic || category || "technology"}".
+
+STYLE:
+- Write like a real person sharing a genuine insight, NOT like a generic AI
+- Use short, punchy sentences
+- Add line breaks between thoughts for readability
+- Start with an unexpected hook that makes people stop scrolling
+- Share a real insight, trend, or perspective
+- End with a thought-provoking question
+
+LENGTH: 600-1200 characters total (caption + hashtags). Do NOT exceed 1200 characters.
 
 RULES:
-- ONLY include verifiable facts. Do NOT invent statistics or fake quotes.
-- Keep it genuine, insightful, and professional.
+- No fake statistics or fabricated quotes
+- No generic filler like "In today's fast-paced world..."
+- Be specific and opinionated
 
-FORMAT:
-- 600 to 1200 characters (STRICTLY — do NOT exceed 1200 characters)
-- Start with a punchy hook
-- 3-4 short paragraphs separated by blank lines
-- End with a question or call-to-action
-- Include 5-8 relevant hashtags
+Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
-Respond ONLY with valid JSON:
-{"caption": "...", "hashtags": ["#tag1", ...]}`;
-
-    const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt, undefined, 1024);
+    const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt, undefined, 2048);
     console.log(`[AI Success] Used post model: ${postModel}`);
     console.log("[AI] Raw Response length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -508,6 +511,15 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
     }
   } else {
     errors.push("HuggingFace: missing HF_API_KEY");
+  }
+
+  // Final fallback: Pollinations AI (free, no API key, returns URL directly)
+  try {
+    console.log("[AI Image] Using Pollinations AI as final fallback...");
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+    return pollinationsUrl;
+  } catch (err: any) {
+    errors.push(`Pollinations: ${err?.message || String(err)}`);
   }
 
   throw new Error(`All image providers failed. Details: ${errors.join(' | ')}`);
