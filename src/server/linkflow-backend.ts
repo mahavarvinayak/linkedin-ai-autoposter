@@ -394,25 +394,23 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    const prompt = `You are a world-class LinkedIn Growth Strategist and Viral Ghostwriter.
-Task: Write a deep-dive, high-authority LinkedIn post about "${topic || category || "technology"}".
+    const prompt = `You are a viral LinkedIn Content Creator known for high-impact, visual-first posts.
+Topic: "${topic || category || "technology"}".
 
-TONE AND STYLE:
-- Write like a professional practitioner with 15+ years of experience.
-- NO AI-GENERIC FLUFF: Strictly avoid words like "unlock," "delve," "dynamic," "transformative," "embark," or "revolutionize."
-- Bold, contrarian, and high-energy.
+POST STYLE (Visual-First):
+- The caption should be SHORT and PUNCHY.
+- Focus on a lethal HOOK and a small amount of context.
+- The image will do the heavy lifting (infographic or meme style).
 
-STRUCTURE (MANDATORY):
-1. THE HOOK: A single, lethal sentence that stops the scroll. 
-2. THE CONTEXT: 2-3 short, punchy paragraphs explaining the "why" now.
-3. THE MEAT: 5-8 bullet points of high-density, actionable insights or counter-intuitive "secrets."
-4. THE TAKEAWAY: A summary of the core lesson.
-5. THE ENGAGEMENT BOMB: A specific, deep question to trigger massive comments.
+STRUCTURE:
+1. HOOK: 1 scroll-stopping sentence.
+2. THE "WHY": 2-3 power-packed sentences.
+3. CALL TO ACTION: A short question or "Check the visual below."
 
 CONSTRAINTS:
-- LENGTH: 1800 to 2600 characters (MUST BE LONG AND DETAILED).
-- EMOJIS: Maximum 2-3 subtle, relevant ones.
-- KEYWORDS: AI, automation, startup growth, digital efficiency.
+- LENGTH: 300 to 600 characters (STRICT LIMIT).
+- NO AI-FLUFF. No "Unlock," "Delve," etc.
+- 1-2 relevant emojis.
 
 Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
@@ -537,18 +535,22 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
-    const descPrompt = `You are a professional LinkedIn social media graphic designer.
-Generate a prompt for an AI to create a high-end marketing graphic about "${topic}".
+    // Step 1: Generate a VIRAL VISUAL image description
+    const descPrompt = `You are a world-class social media visual designer.
+Generate a prompt for an AI to create a VIRAL LinkedIn visual about "${topic}".
 
-DESIGN PRINCIPLES:
-- Style: Minimalist SaaS branding, clean vectors, high-quality glossmorphism.
-- Atmosphere: Professional, credible, futuristic tech board-room or sleek office workspace.
-- Visuals: Bold, readable typography (if used), but focus on stunning abstract 3D elements, charts, or clean professional icons.
-- Colors: Deep blues, blacks, crisp whites, and premium gradients.
-- Quality: 8k resolution, cinematic lighting, masterpiece, trending on Behance.
+STLYE OPTIONS (Choose one that fits the topic best):
+1. UI MOCKUP: A clean screenshot style (like ChatGPT or WhatsApp) with a funny or profound interaction.
+2. COMPARISON: A "2024 vs 2025" style chart with clean icons and minimalist layout.
+3. CHARACTER STORY: A high-quality 3D illustration of a relatable business situation (masterpiece quality).
+4. QUOTE CARD: Bold, giant typography on a premium sleek gradient background.
 
-AVOID: Blurry faces, distorted text, messy backgrounds, "trashy" AI artifacts.
+QUALITY RULES:
+- Style: Minimalist, "Nano Banana" design aesthetic, high contrast.
+- Visuals: Sharp text rendering, cinematic lighting, masterpiece, 8k.
+- Colors: Sleek corporate (Deep Blue, Dark Grey, Vibrant White/Green).
+
+AVOID: Clutter, generic AI faces, messy backgrounds.
 Respond only with 1-2 powerful sentences describing the masterpiece.`;
 
     const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 200);
@@ -983,23 +985,13 @@ export async function runDailyPostAutomation(req: NextRequest) {
         const userDailyTopic = userData.dailyTopic?.trim();
         const randomTopic = userDailyTopic || topics[Math.floor(Math.random() * topics.length)];
 
-        // Elite Growth Strategist prompt for daily automation
-        const prompt = `You are a world-class LinkedIn Growth Strategist and Viral Ghostwriter.
-Task: Write a deep-dive, high-authority LinkedIn post about "${randomTopic}".
-
-TONE AND STYLE:
-- Write like a top 0.1% practitioner. Bold, insightful, and contrarian.
-- NO AI-GENERIC FLUFF: Strictly avoid words like "unlock," "delve," "dynamic," "transformative," "embark," or "revolutionize."
-
-STRUCTURE:
-1. THE HOOK: A lethal first sentence.
-2. THE CONTEXT: 2-3 short, punchy paragraphs.
-3. THE MEAT: 5-8 actionable bullet points.
-4. THE ENGAGEMENT TRIGGER: A specific deep question.
-
-CONSTRAINTS:
-- 1800 to 2600 characters total (MANDATORY DEPTH).
-- Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
+        // Specimen Style: Short, Viral, Visual-Heavy
+        const prompt = `You are a viral LinkedIn creator. Write a short support caption for a post about "${randomTopic}".
+- Hook: Scroll-stopping.
+- Body: 2-3 short, punchy lines.
+- No AI fluff.
+- Length: Max 500 characters.
+Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
         const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
         console.log(`[AI Auto Success] User ${userDoc.id} used model: ${autoModel}`);
@@ -1024,13 +1016,12 @@ CONSTRAINTS:
         // --- Generate image for daily automation ---
         let imageAsset: string | null = null;
         try {
-          // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
-          const imgDescPrompt = `You are a professional LinkedIn social media graphic designer.
-Generate a prompt for an AI image generator to create a high-end marketing graphic about "${randomTopic}".
-- Style: Minimalist SaaS branding, clean 3D vectors, premium lighting.
-- Focus: Aesthetic excellence and professional atmosphere.
-- AVOID: Distorted text or messy details.
-Respond only with 1-2 powerful sentences.`;
+          // Viral Visual Style
+          const imgDescPrompt = `Generate a prompt for an AI to create a viral LinkedIn graphic about "${randomTopic}".
+          - Style: UI Mockup or Comparison Chart or Quote Card.
+          - Aesthetic: Minimalist, high-end SaaS branding.
+          - Quality: Masterpiece, 8k, Flux model style.
+          Respond only with 1-2 powerful sentences.`;
           const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
           const imgDescription = imgDescResp.trim();
 
