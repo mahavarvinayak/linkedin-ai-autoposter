@@ -52,7 +52,8 @@ async function generateWithFallback(
   groq: Groq, 
   preferredModel: string, 
   prompt: string | any[],
-  fallbacks: string[] = ["llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+  fallbacks: string[] = ["llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+  maxTokens?: number
 ) {
   const modelsToTry = [preferredModel, ...fallbacks];
   let lastError: any = null;
@@ -63,6 +64,7 @@ async function generateWithFallback(
       const response = await groq.chat.completions.create({
         messages: [{ role: "user", content: prompt as any }],
         model: modelName,
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
       });
       return { response: response.choices[0]?.message?.content || "", modelUsed: modelName };
     } catch (err) {
@@ -392,30 +394,23 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
     
-    const prompt = `As an expert LinkedIn content creator, generate a highly engaging and DETAILED LinkedIn post about "${topic || category || "technology"}".
+    const prompt = `As an expert LinkedIn content creator, generate an engaging LinkedIn post about "${topic || category || "technology"}".
 
-CRITICAL RULES:
-- ONLY include facts, statistics, or claims that are widely known and verifiable. Do NOT invent fake statistics, fabricated quotes, or false claims.
-- If you mention a trend or data point, keep it general (e.g., "studies show...", "industry reports suggest...") rather than citing a specific fake number.
-- Do NOT attribute quotes to real people unless they are very well-known public statements.
-- Focus on genuine insights, opinions, and thought leadership rather than fake news or clickbait.
+RULES:
+- ONLY include verifiable facts. Do NOT invent statistics or fake quotes.
+- Keep it genuine, insightful, and professional.
 
-The post MUST:
-- Be between 800 and 1500 characters long (THIS IS MANDATORY — short posts of 2-3 lines are NOT acceptable)
-- Start with a strong, attention-grabbing hook line
-- Have at least 5-7 paragraphs separated by blank lines
-- Include a personal story, analogy, or real-world example
-- Provide valuable industry insight or a thought-provoking idea
-- Maintain a conversational yet professional tone
-- Be optimized for LinkedIn formatting (short paragraphs, line breaks)
-- End with a question or call-to-action to drive engagement
-- Include 5-10 highly relevant hashtags
+FORMAT:
+- 600 to 1200 characters (STRICTLY — do NOT exceed 1200 characters)
+- Start with a punchy hook
+- 3-4 short paragraphs separated by blank lines
+- End with a question or call-to-action
+- Include 5-8 relevant hashtags
 
-Respond ONLY with valid JSON with two keys:
-- "caption": the post text (string, minimum 800 characters)
-- "hashtags": array of hashtag strings (each starting with #)`;
+Respond ONLY with valid JSON:
+{"caption": "...", "hashtags": ["#tag1", ...]}`;
 
-    const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
+    const { response: text, modelUsed: postModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt, undefined, 1024);
     console.log(`[AI Success] Used post model: ${postModel}`);
     console.log("[AI] Raw Response length:", text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -531,12 +526,10 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate image description using text model
-    const descPrompt = `Generate a highly detailed, professional, and visually stunning image description for a LinkedIn post.
-The image should represent the following topic: "${topic}".
-The style should be modern, clean, and high-quality. Respond ONLY with the description.`;
+    // Step 1: Generate a SHORT image description using text model
+    const descPrompt = `Write a 1-2 sentence image description for a LinkedIn post about "${topic}". Professional, modern style. ONLY the description, nothing else.`;
 
-    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt);
+    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 100);
     console.log(`[AI Image] Description generated with: ${descModel}`);
     const imageDescription = text.trim();
 

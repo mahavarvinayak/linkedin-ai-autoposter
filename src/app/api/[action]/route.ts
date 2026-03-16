@@ -16,6 +16,7 @@ import {
 } from "@/server/linkflow-backend";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteParams = {
   params: Promise<{action: string}>;
