@@ -394,18 +394,21 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    const prompt = `You are a world-class LinkedIn Viral Creator (Style: Heet Patel).
-Task: Create a high-impact post about "${topic || category || "technology"}".
+    const prompt = `You are a world-class LinkedIn SEO Expert and Viral Ghostwriter (Style: Heet Patel).
+Task: Create a high-authority, SEO-optimized post about "${topic || category || "technology"}".
 
-CONTENT MODES (Choose the best fit):
-1. THE VIRAL HOOK: Short (2-4 punchy lines). Focus on a "Then vs Now" or "Expectation vs Reality" comparison.
-2. THE AUTHORITY STORY: Long-form (1300-1500 characters). Airy listicle structure with ↳ for sub-points.
+SEO & KEYWORDS:
+- Primary keywords: AI, Automation, Startup Growth, Productivity, Future of Work.
+- Natural Integration: Weave these keywords into the body and headings to rank in LinkedIn Search.
+
+CONTENT MODES:
+1. THE VIRAL HOOK: Short (2-4 lines). "Then vs Now" or "Expectation vs Reality".
+2. THE AUTHORITY STORY: Airy listicle (1300-1500 chars). Use ↳ for sub-points.
 
 RULES:
-- NO AI-FLUFF: Zero usage of "Unlock," "Delve," "Transformative," etc.
-- SPACING: Every single sentence MUST be on a new line. Double space between paragraphs.
-- TONE: Professional but mixes in common startup/tech-culture relatability.
-- HUMOR: Use subtle, dry humor or "Hinglish" (Hindi-English mix) words like "Scam," "Jugaad," or "Bhai" if it fits a meme context.
+- NO AI-FLUFF: NO "Unlock," "Delve," "Transformative," "Essential," "Revolutionize."
+- SPACING: 1 sentence per line. No blocks of text.
+- TONALITY: High-authority practitioner + Relatable "Hinglish" humor (Scam, Jugaad, Bhai).
 
 CONSTRAINTS:
 - Character Limit: 1300-1500 strictly.
@@ -532,20 +535,22 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate a HEET-STYLE VIRAL VISUAL
-    const descPrompt = `You are a professional LinkedIn visual designer (Style: Heet Patel).
-Generate an ultra-crisp AI image prompt for "${topic}".
+    // Step 1: Generate a DEFENSIVE MASTERPIECE visual prompt
+    const descPrompt = `You are a world-class LinkedIn visual designer (Style: Heet Patel).
+Generate a visual prompt for an AI image generator about "${topic}".
+
+STRICT RULE: NO FINE-PRINT TEXT. If you use text, it must be ONE giant bold word only.
+Focus on visual metaphors and aesthetic excellence.
 
 VISUAL TEMPLATES (Pick one):
-- TWEET STYLE: A clean, dark-mode/white-mode screenshot of a tweet with a bold insight.
-- COMPARISON CHART: A "2024 vs 2026" or "Good vs Great" comparison card with clean icons.
-- UI SNIPPET: A high-end mock of a ChatGPT or WhatsApp chat bubble with a relatable message.
-- MINIMALIST ILLUSTRATION: A square 3D character (Nano Banana style) representing a tech-life struggle.
+- HYPER-REALISTIC 3D ABSTRACT: Cinema 4D style, glassmorphism, glowing neural networks, glowing floating charts. Premium "Apple" aesthetic.
+- PURE METAFHOR: A high-end luxury photography shot (e.g., a golden gear, a glowing seed in a motherboard).
+- UI MASTERPIECE: A minimalist "Ghost UI" with glowing buttons and zero fake text.
 
-DESIGN QUALITY:
-- Layout: Square 1:1, minimalist SaaS branding.
-- Text: Crystal clear, bold typography, no gibberish.
-- Lighting: Professional studio lighting, 8k, Flux model aesthetic.
+AESTHETICS:
+- Mood: Professional, Expensive, High-Authority.
+- Style: Minimalist, "Masterpiece" level rendering, 8k, bokeh background.
+- Colors: Deep Midnight Blue, Cyber Lime, Pure White.
 
 Respond only with 1-2 powerful descriptive sentences.`;
 
@@ -981,12 +986,13 @@ export async function runDailyPostAutomation(req: NextRequest) {
         const userDailyTopic = userData.dailyTopic?.trim();
         const randomTopic = userDailyTopic || topics[Math.floor(Math.random() * topics.length)];
 
-        // Automation Style: Airy, Authoritative, and Viral (Style: Heet Patel)
-        const prompt = `You are a viral LinkedIn creator. Write an airy, listicle-style post about "${randomTopic}".
+        // Specimen Style: SEO-Optimized, Airy, and Viral (Style: Heet Patel)
+        const prompt = `You are a viral LinkedIn SEO Expert. Write a short, keyword-dense airy post about "${randomTopic}".
 - Hook: Comparison/Contrarian.
+- SEO: Include keywords like AI, Automation, and Startup naturally.
 - Structure: Short sentences, ↳ for points.
-- TONE: Pro-tech + Relatable humor.
-- Length: Max 1300-1500 chars (Strict for UI).
+- Tone: High-authority + Relatable humor.
+- Length: Max 1300-1500 chars.
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
         const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
@@ -1012,11 +1018,11 @@ Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
         // --- Generate image for daily automation ---
         let imageAsset: string | null = null;
         try {
-          // Viral Visual Style
-          const imgDescPrompt = `Generate a prompt for an AI to create a viral LinkedIn graphic about "${randomTopic}".
-          - Style: UI Mockup or Comparison Chart or Quote Card.
-          - Aesthetic: Minimalist, high-end SaaS branding.
-          - Quality: Masterpiece, 8k, Flux model style.
+          // Masterpiece Visual Style (Defensive against gibberish)
+          const imgDescPrompt = `Generate a visual prompt for a high-end LinkedIn graphic about "${randomTopic}".
+          - Concept: Minimalist Masterpiece or 3D Abstract Metaphor.
+          - Rule: NO TEXT. Focus on lighting, texture, and glassmorphism.
+          - Aesthetic: Premium SaaS, 8k, Flux model style.
           Respond only with 1-2 powerful sentences.`;
           const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
           const imgDescription = imgDescResp.trim();
