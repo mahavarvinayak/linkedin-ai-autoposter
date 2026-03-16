@@ -27,6 +27,27 @@ const DEFAULT_LINKEDIN_SCOPES = [
   "w_member_social",
 ].join(" ");
 
+/** Escape control characters inside JSON string values so JSON.parse won't choke */
+function sanitizeLlmJson(raw: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escaped) { result += ch; escaped = false; continue; }
+    if (ch === '\\' && inString) { result += ch; escaped = true; continue; }
+    if (ch === '"') { inString = !inString; result += ch; continue; }
+    if (inString && ch.charCodeAt(0) < 0x20) {
+      if (ch === '\n') { result += '\\n'; continue; }
+      if (ch === '\r') { result += '\\r'; continue; }
+      if (ch === '\t') { result += '\\t'; continue; }
+      continue; // skip other control chars
+    }
+    result += ch;
+  }
+  return result;
+}
+
 async function generateWithFallback(
   groq: Groq, 
   preferredModel: string, 
@@ -400,7 +421,7 @@ Respond ONLY with valid JSON with two keys:
       return jsonError("Failed to parse AI response", 500);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = JSON.parse(sanitizeLlmJson(jsonMatch[0])) as {
       caption?: string;
       hashtags?: string[];
     };
@@ -421,6 +442,10 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
   const cfToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   const hfToken = process.env.HF_API_KEY?.trim();
 
+  console.log(`[AI Image] Env check — CF_ACCOUNT: ${accountId ? 'SET' : 'MISSING'}, CF_TOKEN: ${cfToken ? 'SET' : 'MISSING'}, HF_KEY: ${hfToken ? 'SET' : 'MISSING'}`);
+
+  const errors: string[] = [];
+
   // Try Cloudflare first
   if (accountId && cfToken) {
     try {
@@ -436,15 +461,22 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
       });
       if (!cfResp.ok) {
         const errorText = await cfResp.text();
-        throw new Error(`Cloudflare HTTP error! status: ${cfResp.status}, detail: ${errorText}`);
+        throw new Error(`Cloudflare HTTP ${cfResp.status}: ${errorText}`);
       }
-      
+
+      const contentType = cfResp.headers.get("content-type") || "image/png";
       const buffer = await cfResp.arrayBuffer();
       const base64 = Buffer.from(buffer).toString("base64");
-      return `data:image/jpeg;base64,${base64}`;
-    } catch (err) {
-      console.warn("[AI Image] Cloudflare Workers AI failed, falling back...", err);
+      const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
+      console.log("[AI Image] Cloudflare success!");
+      return `data:${mime};base64,${base64}`;
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn("[AI Image] Cloudflare failed:", msg);
+      errors.push(`Cloudflare: ${msg}`);
     }
+  } else {
+    errors.push("Cloudflare: missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN");
   }
 
   // Fallback to Hugging Face
@@ -462,18 +494,25 @@ async function generateImageWithProviders(prompt: string): Promise<string> {
       });
       if (!hfResp.ok) {
         const errorText = await hfResp.text();
-        throw new Error(`HuggingFace HTTP error! status: ${hfResp.status}, detail: ${errorText}`);
+        throw new Error(`HuggingFace HTTP ${hfResp.status}: ${errorText}`);
       }
-      
+
+      const contentType = hfResp.headers.get("content-type") || "image/jpeg";
       const buffer = await hfResp.arrayBuffer();
       const base64 = Buffer.from(buffer).toString("base64");
-      return `data:image/jpeg;base64,${base64}`;
-    } catch (err) {
-      console.warn("[AI Image] Hugging Face failed:", err);
+      const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
+      console.log("[AI Image] Hugging Face success!");
+      return `data:${mime};base64,${base64}`;
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn("[AI Image] Hugging Face failed:", msg);
+      errors.push(`HuggingFace: ${msg}`);
     }
+  } else {
+    errors.push("HuggingFace: missing HF_API_KEY");
   }
 
-  throw new Error("All image generation providers failed or are missing required configuration (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, HF_API_KEY).");
+  throw new Error(`All image providers failed. Details: ${errors.join(' | ')}`);
 }
 
 export async function handleGenerateImage(req: NextRequest) {
@@ -512,7 +551,7 @@ The style should be modern, clean, and high-quality. Respond ONLY with the descr
 export async function handleAnalyzeCompetitor(req: NextRequest) {
   try {
     await verifyAuth(req);
-    const geminiApiKey = getRequiredEnv("GEMINI_API_KEY");
+    const groqApiKey = getRequiredEnv("GROQ_API_KEY");
     const body = await readJsonBody(req);
 
     const competitorContent = (body.competitorContent as string | undefined)?.trim();
@@ -562,7 +601,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}` })
       return jsonError("Failed to parse AI response", 500);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = JSON.parse(sanitizeLlmJson(jsonMatch[0])) as {
       caption?: string;
       hashtags?: string[];
     };
@@ -939,7 +978,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
           continue;
         }
 
-        const parsed = JSON.parse(jsonMatch[0]) as {
+        const parsed = JSON.parse(sanitizeLlmJson(jsonMatch[0])) as {
           caption: string;
           hashtags: string[];
         };
