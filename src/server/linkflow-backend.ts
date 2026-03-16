@@ -416,6 +416,66 @@ Respond ONLY with valid JSON with two keys:
   }
 }
 
+async function generateImageWithProviders(prompt: string): Promise<string> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const cfToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  const hfToken = process.env.HF_API_KEY?.trim();
+
+  // Try Cloudflare first
+  if (accountId && cfToken) {
+    try {
+      console.log("[AI Image] Attempting Cloudflare Workers AI...");
+      const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-lightning`;
+      const cfResp = await fetch(cfUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${cfToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ prompt })
+      });
+      if (!cfResp.ok) {
+        const errorText = await cfResp.text();
+        throw new Error(`Cloudflare HTTP error! status: ${cfResp.status}, detail: ${errorText}`);
+      }
+      
+      const buffer = await cfResp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      return `data:image/jpeg;base64,${base64}`;
+    } catch (err) {
+      console.warn("[AI Image] Cloudflare Workers AI failed, falling back...", err);
+    }
+  }
+
+  // Fallback to Hugging Face
+  if (hfToken) {
+    try {
+      console.log("[AI Image] Attempting Hugging Face Inference API...");
+      const hfUrl = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+      const hfResp = await fetch(hfUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ inputs: prompt })
+      });
+      if (!hfResp.ok) {
+        const errorText = await hfResp.text();
+        throw new Error(`HuggingFace HTTP error! status: ${hfResp.status}, detail: ${errorText}`);
+      }
+      
+      const buffer = await hfResp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      return `data:image/jpeg;base64,${base64}`;
+    } catch (err) {
+      console.warn("[AI Image] Hugging Face failed:", err);
+    }
+  }
+
+  throw new Error("All image generation providers failed or are missing required configuration (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, HF_API_KEY).");
+}
+
 export async function handleGenerateImage(req: NextRequest) {
   try {
     const decodedToken = await verifyAuth(req);
@@ -438,9 +498,8 @@ The style should be modern, clean, and high-quality. Respond ONLY with the descr
     console.log(`[AI Image] Description generated with: ${descModel}`);
     const imageDescription = text.trim();
 
-    // Step 2: Use Pollinations Flux for image generation
-    console.log("[AI Image] Using Pollinations Flux fallback for image generation");
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imageDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+    // Step 2: Use Cloudflare/HuggingFace for image generation
+    const imageUrl = await generateImageWithProviders(imageDescription);
     return NextResponse.json({ success: true, imageUrl });
 
   } catch (error) {
@@ -900,12 +959,12 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
           const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
           const imgDescription = imgDescResp.trim();
           
-          // Step 2: Get image from Pollinations
-          const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgDescription)}?width=1080&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
-          const imageResponse = await fetch(imageUrl);
+          // Step 2: Get image from Cloudflare/HuggingFace
+          const imageBase64DataUrl = await generateImageWithProviders(imgDescription);
+          const base64Data = imageBase64DataUrl.split(',')[1];
+          const imageBuffer = Buffer.from(base64Data, 'base64');
           
-          if (imageResponse.ok) {
-            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+          if (imageBuffer) {
             
             // Step 3: Register LinkedIn image upload
             const registerResp = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
