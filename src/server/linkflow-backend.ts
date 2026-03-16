@@ -394,25 +394,25 @@ export async function handleGeneratePost(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
     
-    const prompt = `You are a high-end LinkedIn social media manager for top tech influencers. 
+    const prompt = `You are an elite LinkedIn ghostwriter for world-class CEOs and tech visionaries. 
 Generate a VIRAL, high-authority LinkedIn post about "${topic || category || "technology"}".
 
 TONE:
-- Write like a top 1% practitioner, NOT a marketer.
-- Be bold, insightful, and slightly opinionated.
-- Avoid AI-generic words: "delve into," "embark," "unlock," "revolutionize."
+- Write like a top 0.1% practitioner. Bold, insightful, and contrarian.
+- NO AI-generic fluff: remove "embark," "unlock," "revolutionize," "delve."
+- Use powerful, active language.
 
 STRUCTURE:
-- A strong "hook" as the first line that stops the scroll.
-- 4-6 paragraphs (STRICTLY) separated by blank lines.
-- Use bullet points for high-density insights.
-- Share a real-world perspective or "pro-tip" that isn't common knowledge.
-- End with a thought-provoking question to spark meaningful engagement.
+- A lethal "hook" as the first line that literally stops the scroll.
+- 4-6 substantial paragraphs separated by blank lines. (MANDATORY DEPTH)
+- Use bullet points ONLY for extremely high-density insights.
+- Share a "secret" industry perspective or a counter-intuitive pro-tip.
+- End with an "engagement bomb" — a specific, deep question for the audience.
 
 CONSTRAINTS:
-- 1000 to 1400 characters total.
-- Use 5-8 relevant, trending hashtags.
-- NO fake statistics.
+- 1200 to 1800 characters total. (Longer, higher quality)
+- 5-8 hyper-relevant, trending hashtags.
+- Must feel authentic, human, and deeply knowledgeable.
 
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
@@ -541,14 +541,16 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate a HIGHLY CONTEXTUAL image description
-    const descPrompt = `Write a cinematic, high-quality image description for a LinkedIn post about "${topic}". 
-- If the topic is technical (AI, coding), describe data visualizations, neural networks, or futuristic tech labs.
-- If the topic is business/finance, describe professional boardrooms, glowing stock charts, or professional urban architecture with financial icons.
-- Ensure the lighting is dramatic (global illumination, volumetric light) and the style is modern/slick.
-Respond only with 1-2 powerful sentences.`;
+    // Step 1: Generate an ULTRA-PREMIUM image description
+    const descPrompt = `Write an ultra-premium, masterpiece image description for a LinkedIn post about "${topic}". 
+- Style: Award-winning digital photography, 8k resolution, trending on Behance and ArtStation.
+- Lighting: Volumetric god-rays, dramatic cinematic lighting, global illumination.
+- Elements: Highly detailed, realistic textures, modern flat design icons if applicable.
+- If technical: Glowing neural networks, holographic data streaming in a sleek dark lab.
+- If business: High-tech futuristic boardroom, glowing floating stock charts, luxury urban architecture.
+Respond only with 1-2 ultra-descriptive, powerful sentences.`;
 
-    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 150);
+    const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 200);
     console.log(`[AI Image] Description generated with: ${descModel}`);
     const imageDescription = text.trim();
 

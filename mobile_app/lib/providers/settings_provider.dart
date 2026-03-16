@@ -107,19 +107,7 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Update Firestore
-      await _firestoreService.updateUserSettings(user.uid, {
-        'automationEnabled': _automationEnabled,
-        'postingTimes': _postingTimes,
-        'targetType': _targetType,
-        'dailyTopic': _dailyTopic,
-        'selectedOrganizationId': _selectedOrgId,
-        'organizationIds': _selectedOrgId != null && _selectedOrgId!.isNotEmpty
-            ? [_selectedOrgId]
-            : [],
-      });
-
-      // Update Cloud Function scheduler
+      // Update Cloud Function scheduler (This also saves settings to Firestore via Admin SDK)
       final token = await user.getIdToken();
       final service = CloudFunctionService(token!);
       await service.updateAutomationSettings(
