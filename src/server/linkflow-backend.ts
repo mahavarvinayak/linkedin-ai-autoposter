@@ -49,8 +49,8 @@ function sanitizeLlmJson(raw: string): string {
 }
 
 async function generateWithFallback(
-  groq: Groq, 
-  preferredModel: string, 
+  groq: Groq,
+  preferredModel: string,
   prompt: string | any[],
   fallbacks: string[] = ["llama-3.1-8b-instant", "mixtral-8x7b-32768"],
   maxTokens?: number
@@ -393,26 +393,26 @@ export async function handleGeneratePost(req: NextRequest) {
     const category = (body.category as string | undefined)?.trim();
 
     const groq = new Groq({ apiKey: groqApiKey });
-    
-    const prompt = `You are an elite LinkedIn ghostwriter for world-class CEOs and tech visionaries. 
-Generate a VIRAL, high-authority LinkedIn post about "${topic || category || "technology"}".
 
-TONE:
-- Write like a top 0.1% practitioner. Bold, insightful, and contrarian.
-- NO AI-generic fluff: remove "embark," "unlock," "revolutionize," "delve."
-- Use powerful, active language.
+    const prompt = `You are an expert LinkedIn Growth Strategist and viral content writer.
+Your task is to write a LinkedIn post about "${topic || category || "technology"}" that maximizes reach and credibility.
 
 STRUCTURE:
-- A lethal "hook" as the first line that literally stops the scroll.
-- 4-6 substantial paragraphs separated by blank lines. (MANDATORY DEPTH)
-- Use bullet points ONLY for extremely high-density insights.
-- Share a "secret" industry perspective or a counter-intuitive pro-tip.
-- End with an "engagement bomb" — a specific, deep question for the audience.
+1. HOOK (First line): Short, curiosity-driven, 1 sentence only. Scroll-stopping.
+2. CONTEXT: Explain the insight, story, or lesson. Use short sentences.
+3. VALUE: Provide actionable insights or practical lessons. High "learned something" factor.
+4. ENGAGEMENT TRIGGER: End with a deep question to invite opinions.
+
+WRITING STYLE:
+- Conversational but professional.
+- Short paragraphs (Max 2 sentences per paragraph).
+- Use spacing to improve readability.
+- NO AI-generic fluff (no "delve," "unlock," etc.).
 
 CONSTRAINTS:
-- 1200 to 1800 characters total. (Longer, higher quality)
-- 5-8 hyper-relevant, trending hashtags.
-- Must feel authentic, human, and deeply knowledgeable.
+- 1200-1500 characters total.
+- Include 5-8 natural keywords related to AI, automation, startup growth, or the topic.
+- Use 1-2 subtle emojis.
 
 Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
@@ -541,14 +541,20 @@ export async function handleGenerateImage(req: NextRequest) {
 
     const groq = new Groq({ apiKey: groqApiKey });
 
-    // Step 1: Generate an ULTRA-PREMIUM image description
-    const descPrompt = `Write an ultra-premium, masterpiece image description for a LinkedIn post about "${topic}". 
-- Style: Award-winning digital photography, 8k resolution, trending on Behance and ArtStation.
-- Lighting: Volumetric god-rays, dramatic cinematic lighting, global illumination.
-- Elements: Highly detailed, realistic textures, modern flat design icons if applicable.
-- If technical: Glowing neural networks, holographic data streaming in a sleek dark lab.
-- If business: High-tech futuristic boardroom, glowing floating stock charts, luxury urban architecture.
-Respond only with 1-2 ultra-descriptive, powerful sentences.`;
+    // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
+    const descPrompt = `You are a professional LinkedIn social media graphic designer.
+Write a detailed prompt for an AI image generator to create a graphic about "${topic}".
+
+IMAGE STYLE REQUIREMENTS:
+- Clean, minimal, corporate LinkedIn branding aesthetics.
+- High contrast, modern flat design icons or minimalistic vector illustrations.
+- Professional business colors (blue, white, black, subtle gradients).
+- Balanced layout with strong visual hierarchy.
+- TOP: large bold headline text. BOTTOM: subtle supporting insight.
+- 1:1 Square format, sleek tech company branding style.
+
+AVOID: Blurry text, excessive decoration, random backgrounds, distorted artifacts.
+Respond only with 1-2 powerful, descriptive sentences for a masterpiece image generation.`;
 
     const { response: text, modelUsed: descModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", descPrompt, undefined, 200);
     console.log(`[AI Image] Description generated with: ${descModel}`);
@@ -591,11 +597,12 @@ export async function handleAnalyzeCompetitor(req: NextRequest) {
       });
     }
 
-    const analysisPrompt = competitorContent 
+    const analysisPrompt = competitorContent
       ? `Analyze the following competitor posts: "${competitorContent}"`
       : `Analyze the writing style, tone, and formatting of the LinkedIn post in this screenshot.`;
 
-    contentArr.push({ type: "text", text: `${analysisPrompt}
+    contentArr.push({
+      type: "text", text: `${analysisPrompt}
     
 YOUR TASK:
 1. Extract or analyze the writing style, tone, sentence length, and formatting techniques.
@@ -877,7 +884,7 @@ export async function handleUpdateAutomation(req: NextRequest) {
     await db.collection("users").doc(decodedToken.uid).set(
       {
         automationEnabled: enabled,
-        postingTimes, 
+        postingTimes,
         targetType,
         selectedOrganizationId: organizationId,
         ...(dailyTopic !== undefined && { dailyTopic }),
@@ -944,8 +951,12 @@ export async function runDailyPostAutomation(req: NextRequest) {
         dailyTopic?: string;
       };
 
-      // Use hardcoded schedule based on current IST day
-      const postingTimes = WEEKLY_SCHEDULE[istNow.day] || ["09:00", "18:00"];
+      // Priority 1: User-defined posting times. Priority 2: Hardcoded WEEKLY_SCHEDULE.
+      const rawPostingTimes = (userData.postingTimes && userData.postingTimes.length > 0) 
+        ? userData.postingTimes 
+        : (userData.postingTime ? [userData.postingTime] : (WEEKLY_SCHEDULE[istNow.day] || ["09:00", "18:00"]));
+      
+      const postingTimes = Array.isArray(rawPostingTimes) ? rawPostingTimes : [String(rawPostingTimes)];
 
       // Convert HH:MM to total minutes for comparison
       const toMinutes = (t: string) => {
@@ -955,11 +966,10 @@ export async function runDailyPostAutomation(req: NextRequest) {
       const nowMinutes = toMinutes(istNow.time);
 
       // Check if any scheduled time is within ±15 minutes of current time
-      // This allows cron (which runs every 30min at :00/:30) to catch times like 10:17, 12:46
       const matchedTime = postingTimes.find(pt => Math.abs(nowMinutes - toMinutes(pt)) <= 15);
 
       if (!matchedTime) continue;
-      // Prevent double posting: store the MATCHED scheduled time, not the cron trigger time
+      // Prevent double posting
       if (userData.lastAutoPostedDate === istNow.dateKey && userData.lastAutoPostedTime === matchedTime) continue;
       if (!userData.linkedinAccessToken) continue;
 
@@ -978,19 +988,23 @@ export async function runDailyPostAutomation(req: NextRequest) {
         const userDailyTopic = userData.dailyTopic?.trim();
         const randomTopic = userDailyTopic || topics[Math.floor(Math.random() * topics.length)];
 
-        // User requested "Gemini 3 Flash" for daily posts
-        const prompt = `Generate a highly engaging LinkedIn post about "${randomTopic}".
+        // Elite Growth Strategist prompt for daily automation
+        const prompt = `You are an expert LinkedIn Growth Strategist and viral content writer.
+Generate a LinkedIn post about "${randomTopic}" that maximizes reach and credibility.
 
-CRITICAL: Only include facts and claims that are widely known and verifiable. Do NOT invent fake statistics, fabricated quotes, or false claims. Focus on genuine insights and thought leadership.
+STRUCTURE:
+1. HOOK: 1 scroll-stopping sentence.
+2. CONTEXT: Insight/lesson using short sentences.
+3. VALUE: Actionable lessons. High "learned something" factor.
+4. ENGAGEMENT TRIGGER: Deep question at the end.
 
-The post must:
-- Start with a strong hook
-- Provide valuable, truthful insight
-- Conversational yet professional tone
-- Maximum 1500 characters
-- Include 5-10 relevant hashtags
+WRITING STYLE:
+- Short paragraphs (Max 2 sentences per paragraph).
+- NO AI fluff. Conversational but professional.
 
-Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
+CONSTRAINTS:
+- 1200-1500 characters. 1-2 subtle emojis.
+- Respond ONLY with JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
 
         const { response: text, modelUsed: autoModel } = await generateWithFallback(groq, "llama-3.3-70b-versatile", prompt);
         console.log(`[AI Auto Success] User ${userDoc.id} used model: ${autoModel}`);
@@ -1015,18 +1029,22 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
         // --- Generate image for daily automation ---
         let imageAsset: string | null = null;
         try {
-          // Step 1: Generate image description
-          const imgDescPrompt = `Describe a professional LinkedIn post image for: "${randomTopic}". Modern, clean, high-quality. Respond ONLY with the description.`;
+          // Step 1: Generate a PROFESSIONAL GRAPHIC DESIGN image description
+          const imgDescPrompt = `You are a professional LinkedIn social media graphic designer.
+Write an ultra-premium image description for an AI generator about "${randomTopic}".
+- Style: Corporate LinkedIn branding, modern flat design icons, clean vector graphics.
+- Layout: Bold headline text, minimalistic tech atmosphere.
+Respond only with 1-2 powerful sentences.`;
           const { response: imgDescResp } = await generateWithFallback(groq, "llama-3.3-70b-versatile", imgDescPrompt);
           const imgDescription = imgDescResp.trim();
-          
+
           // Step 2: Get image from Cloudflare/HuggingFace
           const imageBase64DataUrl = await generateImageWithProviders(imgDescription);
           const base64Data = imageBase64DataUrl.split(',')[1];
           const imageBuffer = Buffer.from(base64Data, 'base64');
-          
+
           if (imageBuffer) {
-            
+
             // Step 3: Register LinkedIn image upload
             const registerResp = await fetch("https://api.linkedin.com/v2/assets?action=registerUpload", {
               method: "POST",
@@ -1045,12 +1063,12 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
                 },
               }),
             });
-            
+
             if (registerResp.ok) {
               const registerData = await registerResp.json() as any;
               const uploadUrl = registerData.value?.uploadMechanism?.["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]?.uploadUrl;
               const assetId = registerData.value?.asset;
-              
+
               if (uploadUrl && assetId) {
                 // Step 4: Upload image binary
                 const uploadResp = await fetch(uploadUrl, {
@@ -1061,7 +1079,7 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
                   },
                   body: new Uint8Array(imageBuffer),
                 });
-                
+
                 if (uploadResp.ok) {
                   imageAsset = assetId;
                   console.log(`[Auto Image] Successfully uploaded image for user ${userDoc.id}`);
@@ -1077,17 +1095,17 @@ Respond ONLY with valid JSON: {"caption": "...", "hashtags": ["#tag1", ...]}`;
         // --- Post to LinkedIn (with or without image) ---
         const shareMedia = imageAsset
           ? {
-              shareCommentary: { text: fullContent },
-              shareMediaCategory: "IMAGE" as const,
-              media: [{
-                status: "READY",
-                media: imageAsset,
-              }],
-            }
+            shareCommentary: { text: fullContent },
+            shareMediaCategory: "IMAGE" as const,
+            media: [{
+              status: "READY",
+              media: imageAsset,
+            }],
+          }
           : {
-              shareCommentary: { text: fullContent },
-              shareMediaCategory: "NONE" as const,
-            };
+            shareCommentary: { text: fullContent },
+            shareMediaCategory: "NONE" as const,
+          };
 
         const linkedinResponse = await fetch("https://api.linkedin.com/v2/ugcPosts", {
           method: "POST",
@@ -1194,7 +1212,7 @@ export async function runAnalyticsRefresh(req: NextRequest) {
 
           const encodedUrn = encodeURIComponent(postUrn);
           console.log(`[Analytics] Refreshing for URN: ${postUrn} (Encoded: ${encodedUrn})`);
-          
+
           const socialResponse = await fetch(
             `https://api.linkedin.com/v2/socialActions/${encodedUrn}`,
             {
@@ -1263,7 +1281,7 @@ export async function runScheduledPosts(req: NextRequest) {
   try {
     const db = getDb();
     const now = admin.firestore.Timestamp.now();
-    
+
     // Find all posts that are 'scheduled' and whose time has passed
     const scheduledSnapshot = await db
       .collectionGroup("posts")
@@ -1283,7 +1301,7 @@ export async function runScheduledPosts(req: NextRequest) {
         organizationId?: string;
         imageUrl?: string;
       };
-      
+
       const userDoc = postDoc.ref.parent.parent!;
       const userSnapshot = await userDoc.get();
       const userData = userSnapshot.data() as { linkedinAccessToken?: string; linkedinId?: string };
